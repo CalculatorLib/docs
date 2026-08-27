@@ -1,0 +1,61 @@
+---
+title: "Rate limits"
+description: "60 requests/minute anonymously, 600 with an API token. What's counted, what a 429 looks like, and how to back off."
+icon: "gauge-high"
+---
+
+## MCP server (`POST /mcp`)
+
+| Caller | Limit | Counted per |
+|---|---|---|
+| Anonymous | **60 requests / minute** | Client IP (IPv6 addresses are grouped by /64 prefix) |
+| With a `clk_` API token | **600 requests / minute** | User account |
+
+The window is a fixed one-minute window. Limits apply to the whole `/mcp` endpoint — every JSON-RPC call counts, including `tools/list`.
+
+<Note>
+IPv6 traffic is bucketed by /64 prefix because privacy extensions rotate the low 64 bits of an address on their own. If you share an IPv6 /64 (one household or one server), you share the anonymous budget — another reason to [use a token](/authentication).
+</Note>
+
+### What a 429 looks like
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+Content-Type: application/json
+```
+
+```json
+{
+  "error": "rate_limited",
+  "limit_per_minute": 60,
+  "message": "Rate limit exceeded for anonymous use. Retry in a minute, or use an API token for a higher limit."
+}
+```
+
+Respect `Retry-After` — the window resets within a minute. Well-behaved MCP clients handle this automatically.
+
+## REST API
+
+Most REST endpoints have no hard per-endpoint limit, with one exception:
+
+| Endpoint | Limit |
+|---|---|
+| `GET /api/calculators/search` | **60 requests / minute per IP** — returns `429` with `{"error": {"code": "RATE_LIMITED", ...}}` when exceeded |
+
+Search is additionally bounded by design: `limit` is capped at 25 and `offset` at 50, so a single query can page through at most the first ~75 results.
+
+<Warning>
+The whole site sits behind Cloudflare, which applies its own edge rate limiting on top of the numbers above. Sustained high-volume scraping will get throttled at the edge regardless of endpoint.
+</Warning>
+
+## Practical guidance
+
+- **Batch discovery, cache schemas.** Calculator input schemas change rarely — cache `GET /api/calculator/ui/:slug` responses instead of re-fetching per calculation.
+- **One search, then execute.** The intended pattern is a handful of discovery calls followed by execute calls — not enumeration.
+- **Back off on 429.** Wait the `Retry-After` seconds (60) before retrying; don't hammer.
+- **Need more than 600/min?** There is currently no published tier above the token limit — reach out via [calculatorlib.com](https://calculatorlib.com) if you have a high-volume use case.
+
+<Note>
+Separate from these per-minute limits, **monthly API quotas** per subscription tier (2,000 free → unlimited on Enterprise) are part of the upcoming paid plans — see [Plans & pricing](/platform/plans). They are not yet enforced during pre-launch.
+</Note>

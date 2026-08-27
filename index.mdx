@@ -1,97 +1,58 @@
 ---
 title: "Introduction"
-description: "Welcome to the new home for your documentation"
+description: "CalculatorLib is a library of 8,000+ calculators and unit converters — usable by people on the web, and by your code or AI agents through a public REST API and an MCP server."
+icon: "house"
 ---
 
-## Setting up
+## What is CalculatorLib?
 
-Get your documentation site up and running in minutes.
+[CalculatorLib](https://calculatorlib.com) hosts thousands of calculators — finance, health, math, statistics, geometry, date & time, science, cooking, fitness — plus a large unit-conversion engine covering 60+ measurement categories. Every calculator that runs on the website can also be run programmatically:
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+- **REST API** — plain JSON over HTTPS. Search calculators, read their input schemas, execute them, and convert units.
+- **MCP server** — a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `https://calculatorlib.com/mcp` that gives Claude, Cursor, and any MCP client direct access to the whole library.
 
-## Make it yours
+Both are **free and public**. No signup is required to start; an optional API token raises your MCP rate limit 10×.
 
-Design a docs site that looks great and empowers your users.
+## Choose your path
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Search a calculator, read its input schema, and execute it — three curl commands.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="MCP Server" icon="plug" href="/mcp/overview">
+    Add the whole calculator library to Claude Desktop, Claude Code, Cursor, Zed, Cline, or Windsurf.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Every public endpoint, with request/response schemas and a try-it playground.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Unit Converters" icon="right-left" href="/guides/converters">
+    Convert between units in 60+ categories — length, mass, energy, pressure, data, and more.
   </Card>
-</Columns>
+  <Card title="Embed on your site" icon="window-restore" href="/guides/embed">
+    Put any calculator on your own website with one script tag — responsive and ad-free.
+  </Card>
+  <Card title="Plans & pricing" icon="credit-card" href="/platform/plans">
+    What's free, what Builder and Business add, and how Enterprise works.
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## The two surfaces at a glance
 
-Everything you need to create world-class documentation.
+| | REST API | MCP server |
+|---|---|---|
+| Base URL | `https://calculatorlib.com/api/...` | `https://calculatorlib.com/mcp` |
+| Protocol | JSON over HTTPS | JSON-RPC 2.0 (Streamable HTTP) |
+| Best for | Backends, scripts, integrations | AI agents and chat clients |
+| Auth | None (public) | Optional `clk_` token → higher limits |
+| Discover calculators | `GET /api/calculators/search` | `search_calculators` tool |
+| Read input schema | `GET /api/calculator/ui/:slug` | `get_calculator_schema` tool |
+| Execute a calculator | `POST /api/calculator/execute/:slug` | `run_calculator` tool |
+| Convert units | `POST /api/converter/convert` | `convert_<category>` tools |
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+<Warning>
+`POST /api/calculator/execute/:slug` silently falls back to **default values** for any input name it doesn't recognize — it does not return an error for a misspelled field. Always fetch the exact input names from `GET /api/calculator/ui/:slug` first. See [Errors & caveats](/guides/errors-and-caveats).
+</Warning>
 
-## Need inspiration?
+## For LLMs and AI assistants
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+CalculatorLib publishes an [`llms.txt`](https://calculatorlib.com/llms.txt) at the site root, following the [llmstxt.org](https://llmstxt.org) convention, so AI assistants can discover the calculator library and its API on their own.

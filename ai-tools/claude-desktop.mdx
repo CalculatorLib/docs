@@ -1,0 +1,68 @@
+---
+title: "Claude Desktop"
+description: "Connect Claude Desktop to the CalculatorLib MCP server as a custom connector."
+icon: "message"
+---
+
+## Option 1: Add as a custom connector (recommended)
+
+Recent versions of Claude Desktop support remote MCP servers directly in the UI:
+
+<Steps>
+<Step title="Open connector settings">
+  **Settings → Connectors → Add custom connector**.
+</Step>
+<Step title="Enter the server URL">
+  ```
+  https://calculatorlib.com/mcp
+  ```
+  No OAuth or credentials are required — leave authentication empty.
+</Step>
+<Step title="Confirm">
+  The CalculatorLib tools (`search_calculators`, `run_calculator`, `convert_*`, …) appear in the tools menu of new conversations.
+</Step>
+</Steps>
+
+## Option 2: Edit the config file
+
+Alternatively, add the server to Claude Desktop's configuration file:
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json claude_desktop_config.json
+{
+  "mcpServers": {
+    "calculatorlib": {
+      "url": "https://calculatorlib.com/mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+<Note>
+If your Claude Desktop version doesn't accept a plain `url` entry, bridge through the [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) proxy instead:
+
+```json
+{
+  "mcpServers": {
+    "calculatorlib": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://calculatorlib.com/mcp"]
+    }
+  }
+}
+```
+</Note>
+
+## Verify
+
+Start a new conversation and ask:
+
+```
+What's my BMI if I'm 175 cm and 70 kg?
+```
+
+Claude should call `run_calculator` and reply with the BMI, the worked formula, and a link to the calculator page with your values pre-filled.

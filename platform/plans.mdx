@@ -1,0 +1,82 @@
+---
+title: "Plans & pricing"
+description: "What's free, what the paid tiers add, and how Enterprise works — the full CalculatorLib plan model."
+icon: "credit-card"
+---
+
+<Note>
+**Rollout status:** paid plans are in pre-launch. Everything documented as *free* below works today; Builder and Business are opening soon — join the waitlist at [calculatorlib.com/pricing](https://calculatorlib.com/pricing). Pricing and limits below reflect the launch plan and may be adjusted before general availability.
+</Note>
+
+## The four tiers
+
+| | **Free** | **Builder** | **Business** | **Enterprise** |
+|---|---|---|---|---|
+| Price | $0 | **$29**/month | **$299**/month | Custom (annual invoice) |
+| Use every calculator & converter | ✓ | ✓ | ✓ | ✓ |
+| MCP server access | ✓ | ✓ | ✓ | ✓ |
+| Ad-free browsing | — | ✓ | ✓ | ✓ |
+| [Embed](/guides/embed) on your site | ✓ with badge | ✓ badge-free | ✓ badge-free | ✓ badge-free |
+| Embed domain allowlist | — | up to 5 domains | unlimited | unlimited |
+| Embed analytics (views by domain) | — | — | ✓ | ✓ |
+| API calls / month | 2,000 | 100,000 | 2,000,000 | unlimited |
+| Saved calculations | up to 50 | unlimited | unlimited | unlimited |
+| Support | community | email | priority | SLA + dedicated |
+
+## What every account gets today (free)
+
+Creating a free account at [calculatorlib.com](https://calculatorlib.com) already unlocks:
+
+- **API tokens** (`clk_…`) at [/account/api-tokens](https://calculatorlib.com/account/api-tokens) — raises your MCP rate limit from 60 to 600 requests/minute. See [Authentication](/authentication).
+- **MCP usage logs** at [/account/mcp-logs](https://calculatorlib.com/account/mcp-logs) — see every call made with your tokens.
+- **Saved calculations** — star a calculator or save a result with its inputs to revisit later.
+
+## How quotas work
+
+Two independent layers:
+
+1. **Per-minute rate limits** (live today, all tiers): 60 req/min anonymous, 600 req/min with a token — see [Rate limits](/rate-limits). These protect the service and don't change with your plan.
+2. **Monthly API quotas** (per the table above): a commercial allowance counted across your MCP and API calls each calendar month. Exceeding it returns `429` with an `X-Quota-Remaining: 0` header until the month resets.
+
+<Note>
+During pre-launch, monthly quotas are **not yet enforced** — only the per-minute limits apply. Enforcement begins when paid plans go live, with the free allowance set high enough that typical personal use never hits it.
+</Note>
+
+## Billing details (paid tiers)
+
+- **Hosted checkout** — payment runs entirely on the payment provider's hosted pages; your card details never touch CalculatorLib servers.
+- **Self-serve portal** — upgrade, downgrade, change card, or cancel any time from [/account/billing](https://calculatorlib.com/account/billing).
+- **Cancellation** — cancelling keeps your paid entitlements until the end of the period you already paid for, then your account drops to Free. Nothing is deleted.
+- **Grace on payment failure** — a failed renewal doesn't cut access immediately; there's a short grace window while the payment retries.
+- **Soft downgrade for embeds** — if a subscription lapses, embeds you've placed on other sites **keep working**; they revert to free-tier behavior (badge shown, domain lock released) rather than breaking.
+
+## Enterprise
+
+Enterprise is for teams that need the platform under their own terms:
+
+- **Invoice billing** (annual), no card required
+- **Unlimited API volume** and embed domains
+- **SLA-backed support** with a dedicated contact
+- Custom terms (DPA, procurement paperwork) as needed
+
+Enterprise accounts are provisioned manually — get in touch via [calculatorlib.com](https://calculatorlib.com) and we'll set your organization up directly.
+
+## FAQ
+
+<AccordionGroup>
+<Accordion title="Do I need a paid plan to use the API or MCP server?">
+No. The REST API and MCP server are free — anonymous use included. Paid tiers raise the monthly volume ceiling and add platform features (badge-free embeds, analytics, ad-free browsing); they don't gate basic access.
+</Accordion>
+
+<Accordion title="Which plan do I need to embed a calculator?">
+None — embedding is free for everyone. Paid tiers remove the "Powered by CalculatorLib" badge and add domain locking and analytics. See [Embed](/guides/embed).
+</Accordion>
+
+<Accordion title="What counts against the monthly API quota?">
+Executed calls: MCP `tools/call` and REST `execute`/`convert` requests. Discovery calls (search, schemas, UI lookups) are effectively free — they're covered by the per-minute limits only.
+</Accordion>
+
+<Accordion title="Can I try a paid tier before it launches?">
+Join the waitlist at [calculatorlib.com/pricing](https://calculatorlib.com/pricing) — waitlist members get first access when checkout opens.
+</Accordion>
+</AccordionGroup>

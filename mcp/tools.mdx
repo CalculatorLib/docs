@@ -1,0 +1,146 @@
+---
+title: "MCP tools"
+description: "The complete tool surface of the CalculatorLib MCP server: three calculator meta-tools plus one convert_* tool per unit-converter category."
+icon: "screwdriver-wrench"
+---
+
+`tools/list` returns roughly 70 tools: the 3 meta-tools below, and one `convert_<category>` tool per converter category. All tools are read-only and idempotent.
+
+## Calculator meta-tools
+
+### `search_calculators`
+
+Search the full calculator library by keyword. Results are ranked by relevance and popularity, and each hit includes a compact, ready-to-use `inputSchema` — so the common flow is just search → run.
+
+<ParamField body="query" type="string" required>
+  Keywords describing the calculation you need, e.g. `"mortgage monthly payment"`, `"body mass index"`, `"compound interest"`.
+</ParamField>
+<ParamField body="limit" type="number" default="8">
+  Maximum results to return (max 25).
+</ParamField>
+
+```json Result (structuredContent, trimmed)
+{
+  "query": "bmi",
+  "count": 1,
+  "results": [
+    {
+      "name": "bmi_calculator",
+      "slug": "bmi-calculator",
+      "title": "BMI Calculator",
+      "description": "Calculate your BMI in seconds. ...",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "unitSystem": { "type": "string", "enum": ["metric", "imperial"], "default": "metric" },
+          "weight":  { "type": "number", "description": "Weight (kg)" },
+          "height":  { "type": "number", "description": "Height (cm)" }
+        }
+      }
+    }
+  ]
+}
+```
+
+<Note>
+`name` is the MCP tool name (underscores); `slug` is the public URL path (hyphens). Build links from `slug`.
+</Note>
+
+### `get_calculator_schema`
+
+Return the full input schema (field names, types, units, options) for one calculator by name. Optional — `search_calculators` already includes a compact schema per hit; use this when you need the complete field list.
+
+<ParamField body="name" type="string" required>
+  Tool name from `search_calculators`, e.g. `bmi_calculator`.
+</ParamField>
+
+### `run_calculator`
+
+Execute a calculator and get the result, a share link, and (when available) the worked formula.
+
+<ParamField body="name" type="string" required>
+  Tool name from `search_calculators`, e.g. `compound_interest_calculator`.
+</ParamField>
+<ParamField body="args" type="object" required>
+  The calculator's input fields, keyed by the **exact property names** from the input schema.
+</ParamField>
+
+```json Example call arguments
+{
+  "name": "bmi_calculator",
+  "args": { "unitSystem": "metric", "weight": 70, "height": 175 }
+}
+```
+
+**Result shape:**
+
+- `content[0].text` — one-line summary, then `📐 Formula (with your values): $$...$$` when the calculator has a formula, `📖 Source: ...` when it has citations, and `🔗 Open in browser: <url>`.
+- `content[1]` — a `resource_link` item pointing at the calculator page with the inputs pre-filled.
+- `structuredContent`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `main` | array | Primary result fields `{key, value, display, label, type}` |
+| `data` | array | Secondary/tabular result fields |
+| `rendered_text` | string | Only for older calculators without structured markers — the plain-text result |
+| `formula_latex` | string | The formula with your values substituted (absent when the calc has no formula) |
+| `sources` | array | Citations `{title, publisher, url, type, effective}` (when defined) |
+| `url` | string | Share link with inputs pre-filled |
+
+<Warning>
+**Use exact field names.** `args` keys must match the schema's property names (`weight`, `principal`) — not display labels (`"Weight (kg)"`) or formula symbols (`P`). If *none* of your keys match, the call fails with `isError: true` and a message listing the valid field names. If *some* match, unmatched ones are silently ignored and defaults are used.
+</Warning>
+
+## Converter tools
+
+Each converter category is its own tool named `convert_<category-slug>`. All share one schema:
+
+<ParamField body="value" type="number" required>
+  Numeric value to convert.
+</ParamField>
+<ParamField body="from" type="string" required>
+  Source unit — must be a member of the category's enum, **case-sensitive** (e.g. `"Meter"`, not `"meter"`).
+</ParamField>
+<ParamField body="to" type="string" required>
+  Target unit — same enum.
+</ParamField>
+
+```json Example: convert_length
+{ "value": 5, "from": "Meter", "to": "Foot" }
+```
+
+```json Result (structuredContent)
+{ "category": "length", "value": 5, "from": "Meter", "to": "Foot", "result": 16.404199475065617 }
+```
+
+Each tool's `inputSchema` carries the full unit enum for its category — read it from `tools/list`, or from `GET /api/converter/categories` on the REST side.
+
+### All converter tools
+
+Everyday measurements:
+
+`convert_length` · `convert_mass` · `convert_area` · `convert_volume` · `convert_time` · `convert_temperature` · `convert_speed` · `convert_pressure` · `convert_energy` · `convert_power` · `convert_frequency` · `convert_digital` · `convert_data-transfer-rate` · `convert_angle` · `convert_fuel-economy` · `convert_concentration` · `convert_resolution`
+
+Mechanics & fluids:
+
+`convert_force` · `convert_torque` · `convert_acceleration` · `convert_density` · `convert_flow` · `convert_mass-flow` · `convert_angular-velocity` · `convert_angular-acceleration` · `convert_momentum` · `convert_jerk` · `convert_moment-of-inertia` · `convert_specific-volume` · `convert_surface-density` · `convert_linear-mass-density` · `convert_mass-flux-density` · `convert_surface-tension` · `convert_dynamic-viscosity` · `convert_kinematic-viscosity`
+
+Thermal:
+
+`convert_specific-heat-capacity` · `convert_thermal-conductivity` · `convert_specific-energy` · `convert_heat-flux-density` · `convert_heat-transfer-coefficient` · `convert_thermal-resistance` · `convert_heat-density`
+
+Electricity & magnetism:
+
+`convert_voltage` · `convert_electric-current` · `convert_electric-resistance` · `convert_electric-resistivity` · `convert_electric-charge` · `convert_electric-conductance` · `convert_electric-field-strength` · `convert_capacitance` · `convert_inductance` · `convert_magnetic-flux` · `convert_magnetic-flux-density` · `convert_magnetic-field-strength` · `convert_surface-current-density`
+
+Light & radiation:
+
+`convert_illuminance` · `convert_luminance` · `convert_luminous-intensity` · `convert_luminous-flux` · `convert_radioactivity` · `convert_absorbed-dose` · `convert_equivalent-dose`
+
+Chemistry & sound:
+
+`convert_molar-concentration` · `convert_concentration-mass` · `convert_molar-flow-rate` · `convert_frequency-wavelength` · `convert_sound-level`
+
+<Note>
+The category list grows over time — treat `tools/list` (or `GET /api/converter/categories`) as the source of truth rather than this page.
+</Note>

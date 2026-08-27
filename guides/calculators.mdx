@@ -1,0 +1,87 @@
+---
+title: "Working with calculators"
+description: "How calculator discovery, input schemas, and execution fit together — and the details (hidden fields, trigger fields, currencies) that matter in practice."
+icon: "calculator"
+---
+
+## The three-endpoint workflow
+
+Every integration follows the same shape:
+
+1. **Discover** — `GET /api/calculators/search?q=...` returns slugs (lean rows: slug, name, category, icon).
+2. **Inspect** — `GET /api/calculator/ui/:slug` returns the form schema: every input's `field` name, type, defaults, options, plus the result fields.
+3. **Execute** — `POST /api/calculator/execute/:slug` with `{"inputs": {...}}` returns the computed `resultFields`.
+
+If you're building for an AI agent, `GET /api/calculators/schemas?q=...` collapses steps 1–2: it returns matches with a JSON-Schema-style `inputSchema` per hit (the same shape the MCP `search_calculators` tool returns).
+
+## Reading the form schema
+
+The `form` array from `/api/calculator/ui/:slug` describes each input:
+
+| Field | Meaning |
+|---|---|
+| `field` | The input's name — **use exactly this key** in `inputs` when executing |
+| `field_type` | `input`, `select`, … |
+| `type` | HTML input type: `number`, `text`, `date`, `select`, … |
+| `text` | The human label, usually including the expected unit — e.g. `"Weight (kg):"` |
+| `default_value` | Value used when you don't supply the field |
+| `is_required` | Whether the website marks it required |
+| `is_hidden` | `true` for fields that belong to a non-default mode (see below) |
+| `options` | For selects: the allowed `value`s and their labels |
+
+### Hidden fields and modes
+
+Many calculators have modes — BMI has metric vs imperial, loan calculators have term-in-years vs term-in-months. The mode is a `select` field (e.g. `unitSystem`), and the inputs of the non-default mode come back with `is_hidden: true`. Supply **one consistent set** per call:
+
+```json Metric call
+{ "inputs": { "unitSystem": "metric", "weight": 70, "height": 175 } }
+```
+
+```json Imperial call
+{ "inputs": { "unitSystem": "imperial", "weightLbs": 154, "heightFt": 5, "heightIn": 9 } }
+```
+
+### Trigger fields
+
+`triggerFields` lists the fields that change which other inputs are relevant (like `unitSystem` above). When present, decide the trigger field's value first, then fill in the inputs that belong to that mode.
+
+### Units are in the labels
+
+Numeric inputs expect values in the unit named in their label: `"Annual Interest Rate (%)"` wants `6.5`, not `0.065`; `"Height (cm)"` wants `175`, not `1.75`. There is no unit negotiation — convert before you call (the [converter API](/guides/converters) can help).
+
+## Reading results
+
+`resultFields` is an array of the values the website shows:
+
+```json
+{
+  "key": "bmi",
+  "value": "24.221453287197235",
+  "display": "24.2",
+  "label": "Your BMI",
+  "type": "number"
+}
+```
+
+- `value` — raw machine value (returned as a string; parse as needed).
+- `display` — formatted the way the website shows it, including currency symbols and separators.
+- `type` — semantic type of the field (`number`, `currency`, `percent`, `text`, …).
+
+<Note>
+Currency-typed results are formatted in the calculator's own display currency, which matches what a visitor sees on the calculator's page — the API and the website always agree.
+</Note>
+
+## Language
+
+Calculator pages exist in multiple languages. The API serves English by default at `calculatorlib.com`; localized content follows the site's URL-prefix locale scheme. Slugs are language-independent.
+
+## Versioning
+
+`/api/calculator/ui/:slug` includes a `version` field (e.g. `"0.0.1"`). Calculators can be updated over time; if exact reproducibility matters to you, record the version alongside your results.
+
+## Popularity signals
+
+Two small read-only endpoints expose usage stats:
+
+- `GET /api/mcp/stats/:slug` — per-calculator call counts (`total`, `calls7d`, `calls24h`, `lastTs`) as used by the "trust badge" on calculator pages. Cached 5 minutes.
+- `GET /api/stats/total` — the site-wide live counter shown on the homepage.

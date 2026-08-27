@@ -1,0 +1,84 @@
+---
+title: "Unit converters"
+description: "A dedicated JSON API for unit conversion across 60+ categories — list the categories and units, convert values, and enumerate every converter page URL."
+icon: "right-left"
+---
+
+The converter API is separate from the calculator endpoints: conversions are computed directly by the conversion engine (no calculator execution involved), so calls are fast and the unit lists are exact enums.
+
+## List categories and units
+
+```bash
+curl "https://calculatorlib.com/api/converter/categories"
+```
+
+```json Response (trimmed)
+{
+  "data": [
+    {
+      "category": "Length",
+      "slug": "length",
+      "units": ["Kilometer", "Meter", "Centimeter", "Millimeter", "Micrometer",
+                "Nanometer", "Mile", "Yard", "Foot", "Inch", "Nautical Mile",
+                "Light Year", "Parsec"]
+    },
+    {
+      "category": "Mass",
+      "slug": "mass",
+      "units": ["Metric Ton", "Kilogram", "Gram", "Milligram", "..."]
+    }
+  ]
+}
+```
+
+The `units` arrays are the exact strings the convert endpoint accepts. Categories range from everyday (Length, Mass, Volume, Time, Temperature, Speed, Digital) to engineering and science (Pressure, Torque, Dynamic-viscosity, Magnetic-flux-density, Radioactivity, …) — 60+ in total.
+
+## Convert a value
+
+```bash
+curl -X POST "https://calculatorlib.com/api/converter/convert" \
+  -H "Content-Type: application/json" \
+  -d '{"category": "Length", "value": 5, "from": "Meter", "to": "Foot"}'
+```
+
+```json Response
+{
+  "category": "length",
+  "from": "Meter",
+  "to": "Foot",
+  "value": 5,
+  "result": 16.404199475065617
+}
+```
+
+Rules:
+
+- `category`, `from`, `to` are required strings; `value` must be numeric.
+- **Unit names are case-sensitive** and must match the `units` enum exactly: `"Meter"`, not `"meter"` or `"meters"`.
+- `category` is case-insensitive (`"Length"` and `"length"` both work); the response echoes it lowercased.
+- Invalid input returns `400` with `{"error": "<reason>"}` — e.g. an unknown unit or a non-numeric value.
+
+`result` is an unrounded double — apply your own rounding for display.
+
+## Enumerate converter pages
+
+Every conversion pair also has a human-facing page on the website (e.g. `https://calculatorlib.com/m-to-ft`). The full URL surface is machine-readable:
+
+```bash
+curl "https://calculatorlib.com/api/converter/paths"
+```
+
+```json Response (trimmed)
+{
+  "data": [
+    { "path": "ac-to-cm2", "category": "Area", "from": "Acre", "to": "Square centimetre" },
+    { "path": "ac-to-ft2", "category": "Area", "from": "Acre", "to": "Square foot" }
+  ]
+}
+```
+
+`path` is the URL path segment on `calculatorlib.com`. Paths are language-independent (locales are URL prefixes). Useful for building sitemaps, link pickers, or deep links from your own UI.
+
+## Converting via MCP
+
+The same engine is exposed to AI agents as the `convert_<category>` MCP tools — see [MCP tools](/mcp/tools). Tool input is `{value, from, to}`; the category is in the tool name.

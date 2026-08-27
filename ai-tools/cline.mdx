@@ -1,0 +1,30 @@
+---
+title: "Cline"
+description: "Add the CalculatorLib MCP server to the Cline VS Code extension."
+icon: "robot"
+---
+
+## Configure
+
+In VS Code, open Cline and click the **MCP Servers** icon, then **Configure MCP Servers** — this opens `cline_mcp_settings.json`. Add:
+
+```json cline_mcp_settings.json
+{
+  "mcpServers": {
+    "calculatorlib": {
+      "url": "https://calculatorlib.com/mcp",
+      "transportType": "streamableHttp"
+    }
+  }
+}
+```
+
+Save the file; Cline reloads its server list automatically.
+
+## Verify
+
+The `calculatorlib` server should show as connected in the MCP Servers panel, listing `search_calculators`, `get_calculator_schema`, `run_calculator`, and the `convert_*` tools. Then ask Cline:
+
+```
+Use calculatorlib to compute compound interest on $10,000 at 5% for 10 years.
+```

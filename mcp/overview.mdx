@@ -1,0 +1,98 @@
+---
+title: "MCP overview"
+description: "CalculatorLib's Model Context Protocol server puts 8,000+ calculators and 60+ unit-converter categories in reach of Claude, Cursor, Zed, Cline, Windsurf, and any MCP client."
+icon: "plug"
+---
+
+## Endpoint
+
+```
+https://calculatorlib.com/mcp
+```
+
+| | |
+|---|---|
+| Transport | **Streamable HTTP** — `POST` with JSON-RPC 2.0 bodies (no SSE stream; `GET` returns `405`) |
+| Protocol version | `2025-06-18` |
+| Server name | `calculatorlib-mcp` |
+| Auth | Optional — [`clk_` API token](/authentication) via `Authorization: Bearer` or `X-API-Token` |
+| Rate limits | 60 req/min anonymous, 600 req/min with a token — see [Rate limits](/rate-limits) |
+| Supported methods | `initialize`, `tools/list`, `tools/call`, `ping`, `notifications/initialized` |
+
+No signup, no key exchange: point a client at the URL and it works.
+
+## Why the tool list is small
+
+The library contains thousands of calculators, but `tools/list` returns only about **70 tools**: 3 **meta-tools** and one `convert_<category>` tool per unit-converter category. Individual calculators are deliberately *not* enumerated as tools — a list that size would blow out every client's context window. Instead, calculators are discovered by search:
+
+1. **`search_calculators`** — find calculators by keyword; each hit includes a ready-to-use input schema.
+2. **`get_calculator_schema`** — (optional) full input schema for one calculator.
+3. **`run_calculator`** — execute a calculator by name with its input fields.
+
+A typical interaction is two calls: search, then run. See [MCP tools](/mcp/tools) for full schemas.
+
+## What results look like
+
+Every successful `run_calculator` call returns:
+
+- `content[0].text` — a one-line human summary, plus (when the calculator defines one) a **worked formula** in LaTeX with your input values substituted, and source citations when available.
+- `structuredContent` — parsed result fields with labels and values, plus `formula_latex` and `url`.
+- A `resource_link` content item — a share URL to the calculator page with your inputs pre-filled, e.g. `https://calculatorlib.com/bmi-calculator?unitSystem=metric&weight=70&height=170`.
+
+## Try it without a client
+
+The [MCP Playground](https://calculatorlib.com/mcp/docs) on the main site lets you browse tools and run calls from your browser. Or use plain curl:
+
+```bash List tools
+curl -X POST https://calculatorlib.com/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+```bash Run a calculator
+curl -X POST https://calculatorlib.com/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc":"2.0","id":2,"method":"tools/call",
+    "params":{
+      "name":"run_calculator",
+      "arguments":{"name":"bmi_calculator","args":{"unitSystem":"metric","weight":70,"height":170}}
+    }
+  }'
+```
+
+```bash Convert units
+curl -X POST https://calculatorlib.com/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc":"2.0","id":3,"method":"tools/call",
+    "params":{
+      "name":"convert_length",
+      "arguments":{"value":5,"from":"Meter","to":"Foot"}
+    }
+  }'
+```
+
+## Install in your client
+
+<CardGroup cols={3}>
+  <Card title="Claude Code" icon="terminal" href="/ai-tools/claude-code" />
+  <Card title="Claude Desktop" icon="message" href="/ai-tools/claude-desktop" />
+  <Card title="Cursor" icon="arrow-pointer" href="/ai-tools/cursor" />
+  <Card title="Zed" icon="bolt" href="/ai-tools/zed" />
+  <Card title="Cline" icon="robot" href="/ai-tools/cline" />
+  <Card title="Windsurf" icon="water" href="/ai-tools/windsurf" />
+</CardGroup>
+
+For any other MCP client, use transport `streamable-http` with endpoint `https://calculatorlib.com/mcp`.
+
+## Prompts to try
+
+Once connected, ask your assistant things like:
+
+- *"What's my BMI if I'm 175 cm and 70 kg?"*
+- *"Monthly payment on a $420,000 mortgage at 6.5% over 30 years?"*
+- *"Convert 5 miles to kilometers"* — and *"90 mmHg to kPa"*
+- *"How many days until December 25?"*
+
+The assistant will search the library, run the right calculator, and reply with the answer, the worked formula, and a link to the full result page.

@@ -1,0 +1,37 @@
+---
+title: "Zed"
+description: "Add the CalculatorLib MCP server to Zed as a context server."
+icon: "bolt"
+---
+
+## Configure
+
+Open your Zed settings (`zed: open settings`, or `~/.config/zed/settings.json`) and add CalculatorLib under `context_servers`:
+
+```json settings.json
+{
+  "context_servers": {
+    "calculatorlib": {
+      "source": "custom",
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://calculatorlib.com/mcp"
+      }
+    }
+  }
+}
+```
+
+{/* TODO: Zed's remote-MCP settings schema has changed across releases — this is the shape the
+    CalculatorLib /mcp/docs page ships today. If your Zed build rejects it, check
+    https://zed.dev/docs/ai/mcp for the current syntax for remote (streamable HTTP) servers. */}
+
+## Verify
+
+Open the Agent Panel, start a new thread, and check that `calculatorlib` appears in the active tools. Then ask:
+
+```
+How many days until December 25?
+```
+
+Zed's assistant should run the date-difference calculator through `search_calculators` → `run_calculator` and reply with the count and a share link.

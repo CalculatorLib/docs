@@ -1,33 +1,47 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "Introduction"
+description: "The CalculatorLib REST API: public JSON endpoints for searching, inspecting, and executing calculators, and for unit conversion."
+icon: "code"
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Base URL
 
-## Welcome
-
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
-
-## Authentication
-
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
-
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
 ```
+https://calculatorlib.com
+```
+
+All endpoints are served over HTTPS and return JSON. The REST API requires **no authentication** — see [Authentication](/authentication) for the one place tokens matter (the MCP endpoint).
+
+## Endpoint map
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/calculators/search` | Find calculators by keyword |
+| `GET /api/calculators/schemas` | Search with agent-ready input schemas (MCP catalog) |
+| `GET /api/calculator/ui/{slug}` | A calculator's form schema + result fields |
+| `POST /api/calculator/execute/{slug}` | Execute a calculator with your inputs |
+| `GET /api/converter/categories` | All converter categories and their unit enums |
+| `POST /api/converter/convert` | Convert a value between units |
+| `GET /api/converter/paths` | Every converter page URL path |
+| `GET /api/mcp/stats/{slug}` | Per-calculator usage stats |
+| `GET /api/stats/total` | Site-wide live calculation counter |
+| `POST /mcp` | The MCP server (JSON-RPC 2.0) |
+
+## The intended flow
+
+```text
+search (find the slug)  →  ui (get exact field names)  →  execute (compute)
+```
+
+<Warning>
+Never skip the `ui` step: `execute` silently substitutes **default values** for unknown or missing input names instead of erroring. Details in [Errors & caveats](/guides/errors-and-caveats).
+</Warning>
+
+## Conventions
+
+- Calculator endpoints wrap success as `{"status": "ok", "data": {...}}` and errors as `{"error": {...}}`.
+- `resultFields[].value` is the raw value (as a string); `display` is the human-formatted version.
+- Slugs use hyphens (`bmi-calculator`); MCP tool names use underscores (`bmi_calculator`).
+- Search is rate limited at 60 req/min per IP; other REST endpoints rely on edge-level protection. See [Rate limits](/rate-limits).
+
+Each endpoint page in this section is generated from the [OpenAPI specification](https://github.com/calculatorlib/docs/blob/main/api-reference/openapi.json) and includes an interactive playground.

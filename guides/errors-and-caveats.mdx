@@ -1,0 +1,86 @@
+---
+title: "Errors & caveats"
+description: "Error envelope shapes, status codes, and the pitfalls that actually bite integrators — starting with the silent-defaults behavior of the execute endpoint."
+icon: "triangle-exclamation"
+---
+
+## The #1 pitfall: execute uses defaults silently
+
+<Warning>
+`POST /api/calculator/execute/:slug` does **not validate input names**. Any key in `inputs` that doesn't match a real field is ignored, and any field you don't supply falls back to its default value. A request full of misspelled fields returns `200 OK` with a result computed **entirely from defaults** — no error, no warning.
+</Warning>
+
+Symptoms and fix:
+
+- **Symptom**: the result never changes no matter what inputs you send, or looks like the calculator's example values.
+- **Cause**: your keys don't match — wrong case (`Weight` vs `weight`), display labels (`"Weight (kg)"`), or formula symbols (`P`, `r`, `n`) instead of field names.
+- **Fix**: fetch `GET /api/calculator/ui/:slug` and copy the `field` values verbatim. They are camelCase identifiers like `unitSystem`, `weightLbs`, `preTaxAmount`.
+
+The MCP `run_calculator` tool has a partial guard: when **none** of your arg keys match, it fails with a message listing the valid field names. But when *some* keys match, unmatched extras are still silently ignored — the REST endpoint has no guard at all.
+
+## Error envelopes
+
+REST errors come wrapped in an `error` key. The value is an object or a string depending on the endpoint:
+
+```json 404 — calculator not found
+{ "error": { "message": "Calculator not found" } }
+```
+
+```json 400 — bad search query
+{ "error": { "code": "INVALID_QUERY", "message": "Search query is required and must be at least 2 character(s)" } }
+```
+
+```json 400 — bad converter input
+{ "error": "category, from, to are required and value must be numeric" }
+```
+
+Successful calculator responses are wrapped as `{"status": "ok", "data": {...}}`; converter and stats endpoints return their payload directly (converter) or as `{"data": {...}}` (stats).
+
+## Status codes
+
+| Code | Where | Meaning |
+|---|---|---|
+| `200` | everywhere | Success — including MCP tool errors, which return `200` with `result.isError: true` per the MCP spec |
+| `400` | execute, search, convert | Missing slug, query too short, bad converter input |
+| `401` | `/mcp` | Invalid `clk_` token (a *missing* token is fine — that's anonymous) |
+| `404` | ui, execute | Unknown or inactive calculator slug |
+| `405` | `/mcp` | `GET` on the MCP endpoint — only `POST` is supported |
+| `429` | `/mcp`, search | Rate limit exceeded — honor `Retry-After: 60` |
+| `500` | everywhere | Execution error — e.g. a calculator's code failed on the given inputs |
+
+## MCP-specific errors
+
+The MCP endpoint distinguishes two error layers:
+
+- **JSON-RPC errors** (`error` object in the envelope): protocol problems — unknown method (`-32601`), unparseable body (`-32700`), missing tool name (`-32602`).
+- **Tool errors** (`result.isError: true` with an explanatory `content[0].text`): the call was fine but the tool failed — unknown calculator name, missing converter arguments, mismatched field names.
+
+Agents should read `content[0].text` on `isError: true` — the messages are written to be self-correcting (e.g. they list valid field names).
+
+## Other caveats worth knowing
+
+<AccordionGroup>
+<Accordion title="Result values are strings">
+`resultFields[].value` is serialized as a string (`"24.221453287197235"`), even for numbers. Parse it before doing arithmetic. Use `display` only for showing to humans — it contains formatting (currency symbols, thousands separators).
+</Accordion>
+
+<Accordion title="Search requires ≥ 2 characters and caps paging">
+`q` must be at least 2 characters. `limit` is clamped to 1–25 and `offset` to 0–50 — deep pagination through the whole library is intentionally not possible. `has_more` tells you whether more results exist beyond the current page.
+</Accordion>
+
+<Accordion title="Unit names in converters are case-sensitive enums">
+`"Meter"` works; `"meter"`, `"meters"`, and `"m"` do not. Always source unit strings from `GET /api/converter/categories` or the MCP tool's `inputSchema` enum.
+</Accordion>
+
+<Accordion title="Hidden fields belong to a different mode">
+Fields with `is_hidden: true` in the UI schema are only meaningful when a trigger field (like `unitSystem`) selects their mode. Sending `weightLbs` while `unitSystem` is `metric` doesn't error — it just does nothing.
+</Accordion>
+
+<Accordion title="Some older calculators return unstructured results">
+Through MCP, a subset of older calculators has no semantic result markers. For those, `structuredContent` contains `rendered_text` (plain text extracted from the rendered result) instead of populated `main`/`data` arrays. The numeric answer is in the text either way.
+</Accordion>
+
+<Accordion title="Responses are cached">
+Read endpoints are served through a CDN with standard cache headers (`/api/calculator/ui` and search results briefly, `/api/converter/categories` and `/api/converter/paths` longer, `/api/mcp/stats` 5 minutes). POST endpoints (`execute`, `convert`, `/mcp`) are never cached.
+</Accordion>
+</AccordionGroup>

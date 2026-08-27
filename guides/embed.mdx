@@ -1,0 +1,144 @@
+---
+title: "Embedding calculators"
+description: "Put any CalculatorLib calculator on your own website with one script tag — a responsive, auto-resizing, ad-free widget."
+icon: "window-restore"
+tag: "Beta"
+---
+
+<Note>
+Embedding is **rolling out now** — live on our staging environment and landing on calculatorlib.com shortly. The snippet format below is final.
+</Note>
+
+## Playground
+
+The fastest way to build an embed is visually:
+
+<Card title="Embed Playground" icon="sliders" href="https://calculatorlib.com/embed">
+  Pick a calculator, tweak the display options with a live preview, and copy the finished snippet — at **calculatorlib.com/embed**.
+</Card>
+
+Your configuration is saved in the playground's URL, so you can copy the link to share the exact setup with a teammate. Everything the playground generates is documented below, so you can also hand-write or template the snippet.
+
+## Script loader (recommended)
+
+Drop one script tag where you want the calculator to appear:
+
+```html
+<script async src="https://calculatorlib.com/static/js/embed.min.js"
+        data-calc="bmi-calculator"></script>
+```
+
+The loader inserts an iframe **right after the script tag** and keeps its height in sync with the content — results expand, the frame grows, no scrollbars.
+
+| Attribute | Required | Value |
+|---|---|---|
+| `data-calc` | yes | The calculator's slug — the URL path on calculatorlib.com (e.g. `bmi-calculator`, `mortgage-calculator`) |
+| `data-lang` | no | Two-letter language code (`vi`, `es`, `ja`, …) for a localized widget. English is the default |
+
+```html Localized example
+<script async src="https://calculatorlib.com/static/js/embed.min.js"
+        data-calc="bmi-calculator" data-lang="vi"></script>
+```
+
+You can place **multiple embeds on one page** — repeat the script tag with different `data-calc` values; each frame resizes independently. The loader is idempotent, so including it more than once is harmless.
+
+## Direct iframe (alternative)
+
+If you'd rather not run our loader script, embed the iframe yourself:
+
+```html
+<iframe src="https://calculatorlib.com/embed/bmi-calculator"
+        style="width:100%;border:0" loading="lazy"></iframe>
+```
+
+For a localized widget, add the language prefix to the URL: `https://calculatorlib.com/vi/embed/bmi-calculator`.
+
+<Warning>
+Without the loader there is **no auto-resize** — the iframe won't grow when results render. Set a generous fixed `height` (calculators with long result tables need more), or use the script loader, which handles this for you.
+</Warning>
+
+## Display options
+
+Tune what the widget shows and how it looks. Each option is a `data-*` attribute on the script loader **and** a query parameter on the `/embed/<slug>` URL if you use a direct iframe:
+
+| Loader attribute | Iframe query param | Value | Effect |
+|---|---|---|---|
+| `data-hide` | `?hide=` | comma list of `formula`, `actions`, `title`, `thumb` | Hide the formula block, the share/copy/PDF action row, the title, or the thumbnail image. Unknown tokens are ignored |
+| `data-accent` | `?accent=` | 3- or 6-digit hex **without** `#` (e.g. `0ea5e9`) | Accent color — the Calculate button and focus rings |
+| `data-bg` | `?bg=` | 3- or 6-digit hex **without** `#` | Background color of the embed page |
+| `data-mode` | `?mode=` | `swap` | After Calculate, the result **replaces** the form; a "New calculation" button returns to it. Great for narrow, result-focused embeds |
+| `data-layout` | `?layout=` | comma list of `formula-top`, `columns` | Layout presets, combinable: `formula-top` moves the formula block above the form; `columns` puts the form and the result side by side — and stacks them back automatically when the iframe is narrower than 640px (measured on the iframe itself, not your page's viewport) |
+| `data-theme` | `?theme=` | `dark` or `auto` | `dark` renders the widget dark; `auto` follows the visitor's `prefers-color-scheme` |
+| `data-height` | — *(loader only)* | number of px, 200–4000 | Reserve the iframe's expected height up front so your page doesn't shift (CLS) while the widget loads; it smoothly adjusts once the real height is reported. Invalid values fall back to the default 320px floor |
+| `data-e` | `?e=` | your embed key | Your embed key from [calculatorlib.com/account/embeds](https://calculatorlib.com/account/embeds) (paid plans): applies your embed settings, currently badge removal. If the key is missing/invalid or the plan lapses, the widget still renders with the default badge — embeds never break |
+
+Invalid values (bad hex, unknown hide/layout tokens, unknown mode or theme) are simply ignored — the widget still renders with defaults. One combination rule: `columns` is ignored when `data-mode="swap"` is set — the two are contradictory (side-by-side vs one-at-a-time), so swap wins; `formula-top` remains compatible with swap.
+
+```html Layout example
+<script async src="https://calculatorlib.com/static/js/embed.min.js"
+        data-calc="mortgage-calculator"
+        data-layout="formula-top,columns"></script>
+```
+
+<Note>
+Dark theme is best-effort: a calculator's own result content may still render as a light card (fully readable), and the formula block keeps its light background — formula images are dark text on a transparent canvas.
+</Note>
+
+```html Full example
+<script async src="https://calculatorlib.com/static/js/embed.min.js"
+        data-calc="bmi-calculator"
+        data-hide="formula"
+        data-accent="0ea5e9"
+        data-mode="swap"></script>
+```
+
+```text Same thing as a direct iframe URL
+https://calculatorlib.com/embed/bmi-calculator?hide=formula&accent=0ea5e9&mode=swap
+```
+
+<Note>
+Free-form custom CSS and your own logo are not available via attributes — they're part of the upcoming paid embed profiles.
+</Note>
+
+## How it behaves
+
+- **Real calculations, same engine** — the widget computes results with exactly the same backend as calculatorlib.com itself (requests stay inside the iframe, same-origin with our servers). Results in the embed always match the main site.
+- **Isolated from your page** — everything runs inside the iframe: no CSS conflicts, no JavaScript collisions, and the widget can't read anything on your page.
+- **Links open in a new tab** — any link inside the widget (including "open the full page") opens in a new tab, so your visitor never loses your page.
+- **No ads, ever** — embedded calculators never show ads, on any plan.
+- **No SEO side effects** — the embed page is marked `noindex`, so embedding never creates duplicate-content issues for your site or ours.
+- **Free tier badge** — a small "Powered by CalculatorLib" link appears in the widget on the free tier.
+- **Anonymous usage analytics** — embeds report aggregate usage (views and calculations per domain) back to CalculatorLib. Business plans get a per-site analytics dashboard (views + calculations per domain, 30-day chart) at [calculatorlib.com/account/embeds](https://calculatorlib.com/account/embeds) — add your `data-e` key to your embeds so traffic is attributed to your account.
+- **Lightweight** — the loader is tiny and `async`; iframes are lazy-loaded and CDN-cached, so embeds don't slow your page down.
+
+## Embed keys
+
+Every embed-key feature — badge removal, the per-site analytics dashboard, and the domain allowlist — is available on paid plans at [calculatorlib.com/account/embeds](https://calculatorlib.com/account/embeds). See [Plans & pricing](/platform/plans) for what each tier includes.
+
+## FAQ
+
+<AccordionGroup>
+<Accordion title="Which calculators can I embed?">
+Any of them. Take the slug from the calculator's URL — `calculatorlib.com/compound-interest-calculator` → `data-calc="compound-interest-calculator"`. Find calculators with the [search API](/api-reference/introduction) or on the website.
+</Accordion>
+
+<Accordion title="Can I style the widget to match my site?">
+Use the [display options](#display-options): `data-accent` and `data-bg` for colors, `data-hide` to trim sections, `data-mode="swap"` for a compact result view. Free-form CSS isn't supported — the widget is intentionally isolated so it always renders correctly.
+</Accordion>
+
+<Accordion title="The iframe shows at ~320px and then jumps to full size — why?">
+That's the pre-handshake floor: the loader gives the frame a minimum height until the widget reports its real height (a moment after load), then sizes it exactly. It prevents the widget from rendering as a zero-height sliver.
+</Accordion>
+
+<Accordion title="Can I remove the 'Powered by CalculatorLib' badge?">
+Yes, on paid plans: create an embed key at [calculatorlib.com/account/embeds](https://calculatorlib.com/account/embeds) and add it to your snippet as `data-e` (or `?e=` on a direct iframe). Without a valid key the badge stays on.
+</Accordion>
+
+<Accordion title="What if someone copies my data-e key?">
+Set a domain allowlist at [calculatorlib.com/account/embeds](https://calculatorlib.com/account/embeds) — with a list configured, browsers refuse to render your embeds anywhere outside your domains (CSP `frame-ancestors`), so a copied key is useless. Subdomains are included automatically; an empty list means the key works anywhere. The lock stays active even if your plan lapses.
+</Accordion>
+
+<Accordion title="Does traffic on my embeds count against my API quota?">
+No. Visitor interactions with an embedded widget are website traffic, not API usage.
+</Accordion>
+</AccordionGroup>

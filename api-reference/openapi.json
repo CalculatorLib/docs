@@ -1,94 +1,192 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenAPI Plant Store",
-    "description": "A sample API that uses a plant store as an example to demonstrate features in the OpenAPI specification",
-    "license": {
-      "name": "MIT"
-    },
-    "version": "1.0.0"
+    "title": "CalculatorLib API",
+    "description": "Public REST API for CalculatorLib — search, inspect, and execute 8,000+ calculators, convert units across 60+ categories, and read usage stats. No authentication required. The MCP server at POST /mcp additionally accepts an optional clk_ API token for higher rate limits.",
+    "version": "1.0.0",
+    "contact": {
+      "url": "https://calculatorlib.com"
+    }
   },
   "servers": [
     {
-      "url": "http://sandbox.mintlify.com"
+      "url": "https://calculatorlib.com"
     }
   ],
-  "security": [
-    {
-      "bearerAuth": []
-    }
+  "security": [],
+  "tags": [
+    { "name": "Calculators", "description": "Search, inspect, and execute calculators" },
+    { "name": "Converters", "description": "Unit conversion across 60+ categories" },
+    { "name": "Stats", "description": "Public usage statistics" },
+    { "name": "MCP", "description": "Model Context Protocol server (JSON-RPC 2.0 over Streamable HTTP)" }
   ],
   "paths": {
-    "/plants": {
+    "/api/calculators/search": {
       "get": {
-        "description": "Returns all plants from the system that the user has access to",
+        "tags": ["Calculators"],
+        "operationId": "searchCalculators",
+        "summary": "Search calculators",
+        "description": "Full-text search over the calculator library. Returns lean rows (slug, name, category) — fetch the input schema for a hit via `GET /api/calculator/ui/{slug}`. Rate limited to 60 requests/minute per IP. Paging is intentionally shallow: `limit` ≤ 25, `offset` ≤ 50.",
         "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search keywords (minimum 2 characters).",
+            "schema": { "type": "string", "minLength": 2 },
+            "example": "mortgage"
+          },
           {
             "name": "limit",
             "in": "query",
-            "description": "The maximum number of results to return",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            }
+            "required": false,
+            "description": "Maximum results to return (1–25).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 25, "default": 20 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "description": "Pagination offset (0–50).",
+            "schema": { "type": "integer", "minimum": 0, "maximum": 50, "default": 0 }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Filter by category slug.",
+            "schema": { "type": "string" }
           }
         ],
         "responses": {
           "200": {
-            "description": "Plant response",
+            "description": "Search results.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Plant"
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/SearchResult" }
+                        },
+                        "query": { "type": "string" },
+                        "total": { "type": "integer", "description": "Number of results in this page." },
+                        "limit": { "type": "integer" },
+                        "offset": { "type": "integer" },
+                        "has_more": { "type": "boolean", "description": "Whether more results exist beyond this page." },
+                        "language": { "type": "string", "example": "en" }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "data": {
+                    "results": [
+                      {
+                        "slug": "mortgage-interest-calculator",
+                        "name": "Mortgage Interest Calculator",
+                        "h1": "Mortgage Interest Calculator",
+                        "category_name": "General",
+                        "category_slug": null,
+                        "icon": null
+                      }
+                    ],
+                    "query": "mortgage",
+                    "total": 1,
+                    "limit": 20,
+                    "offset": 0,
+                    "has_more": true,
+                    "language": "en"
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Unexpected error",
+            "description": "Missing or too-short query.",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
+                "schema": { "$ref": "#/components/schemas/ErrorObject" },
+                "example": { "error": { "code": "INVALID_QUERY", "message": "Search query is required and must be at least 2 character(s)" } }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded (60 requests/minute per IP).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorObject" },
+                "example": { "error": { "code": "RATE_LIMITED", "message": "Too many search requests" } }
               }
             }
           }
         }
-      },
-      "post": {
-        "description": "Creates a new plant in the store",
-        "requestBody": {
-          "description": "Plant to add to the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NewPlant"
-              }
-            }
+      }
+    },
+    "/api/calculators/schemas": {
+      "get": {
+        "tags": ["Calculators"],
+        "operationId": "searchCalculatorSchemas",
+        "summary": "Search calculators with input schemas",
+        "description": "Agent-oriented search: each match includes a JSON-Schema-style `inputSchema` ready to drive a form or an LLM tool call — the same catalog the MCP `search_calculators` tool uses. Search-only by design: without `q` it returns guidance instead of the catalog (the full catalog is not enumerable).",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Search keywords. Omitting returns a guidance message, not results.",
+            "schema": { "type": "string" },
+            "example": "bmi"
           },
-          "required": true
-        },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum results (1–25).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 25, "default": 12 }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "plant response",
+            "description": "Matching calculator schemas (or guidance when `q` is omitted).",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Plant"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "unexpected error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "query": { "type": "string" },
+                    "count": { "type": "integer" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CatalogEntry" }
+                    }
+                  }
+                },
+                "example": {
+                  "query": "bmi",
+                  "count": 1,
+                  "data": [
+                    {
+                      "name": "bmi_calculator",
+                      "slug": "bmi-calculator",
+                      "title": "BMI Calculator",
+                      "description": "Calculate your BMI in seconds. …",
+                      "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                          "unitSystem": { "type": "string", "enum": ["metric", "imperial"], "default": "metric", "description": "Unit System" },
+                          "weight": { "type": "number", "minimum": 0, "description": "Weight (kg)" },
+                          "height": { "type": "number", "minimum": 0, "description": "Height (cm)" }
+                        }
+                      }
+                    }
+                  ]
                 }
               }
             }
@@ -96,121 +194,576 @@
         }
       }
     },
-    "/plants/{id}": {
-      "delete": {
-        "description": "Deletes a single plant based on the ID supplied",
+    "/api/calculator/ui/{slug}": {
+      "get": {
+        "tags": ["Calculators"],
+        "operationId": "getCalculatorUi",
+        "summary": "Get a calculator's UI schema",
+        "description": "The form schema of one calculator: every input's exact `field` name, type, default, options, and visibility, plus the result fields and metadata. **Call this before executing** — the execute endpoint identifies inputs strictly by these field names and silently falls back to defaults for anything else.",
         "parameters": [
           {
-            "name": "id",
+            "name": "slug",
             "in": "path",
-            "description": "ID of plant to delete",
             "required": true,
-            "schema": {
-              "type": "integer",
-              "format": "int64"
-            }
+            "description": "Calculator slug (hyphenated), e.g. `bmi-calculator`.",
+            "schema": { "type": "string" },
+            "example": "bmi-calculator"
           }
         ],
         "responses": {
-          "204": {
-            "description": "Plant deleted",
-            "content": {}
-          },
-          "400": {
-            "description": "unexpected error",
+          "200": {
+            "description": "The calculator's UI schema.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "slug": { "type": "string" },
+                        "h1": { "type": "string", "description": "Calculator title." },
+                        "description": { "type": "string" },
+                        "form": {
+                          "type": "array",
+                          "description": "One entry per input field.",
+                          "items": { "$ref": "#/components/schemas/FormField" }
+                        },
+                        "type": { "type": "string", "description": "Calculator type.", "example": "standard" },
+                        "category": { "type": ["string", "null"] },
+                        "resultFields": {
+                          "type": "array",
+                          "description": "Result fields, computed with the form's default values.",
+                          "items": { "$ref": "#/components/schemas/ResultField" }
+                        },
+                        "version": { "type": "string", "example": "0.0.1" },
+                        "triggerFields": {
+                          "type": "array",
+                          "description": "Fields whose value changes which other inputs are relevant (e.g. a unit-system switch). Present only when the calculator has them.",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
                 }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing slug.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorObject" } } }
+          },
+          "404": {
+            "description": "Calculator not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorObject" },
+                "example": { "error": { "message": "Calculator not found" } }
               }
             }
           }
         }
       }
-    }
-  },
-  "webhooks": {
-    "/plant/webhook": {
+    },
+    "/api/calculator/execute/{slug}": {
       "post": {
-        "description": "Information about a new plant added to the store",
+        "tags": ["Calculators"],
+        "operationId": "executeCalculator",
+        "summary": "Execute a calculator",
+        "description": "Runs the calculator with the supplied inputs and returns the computed result fields.\n\n**⚠️ Silent-defaults caveat:** input keys are matched by exact field name. Unknown or misspelled keys are ignored **without any error**, and missing fields use the calculator's default values — so a request with wrong names returns `200 OK` with a result computed from defaults. Always take field names from `GET /api/calculator/ui/{slug}` first.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "Calculator slug (hyphenated), e.g. `bmi-calculator`.",
+            "schema": { "type": "string" },
+            "example": "bmi-calculator"
+          }
+        ],
         "requestBody": {
-          "description": "Plant added to the store",
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NewPlant"
+                "type": "object",
+                "properties": {
+                  "inputs": {
+                    "type": "object",
+                    "description": "Input values keyed by the exact `field` names from the UI schema. Values may be numbers, strings, or booleans; they are coerced to strings internally.",
+                    "additionalProperties": true
+                  }
+                },
+                "required": ["inputs"]
+              },
+              "example": {
+                "inputs": { "unitSystem": "metric", "weight": 70, "height": 170 }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Return a 200 status to indicate that the data was received successfully"
+            "description": "Computed result fields. Note: also returned when input names didn't match (computed from defaults) — see the caveat above.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "slug": { "type": "string" },
+                        "resultFields": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ResultField" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "data": {
+                    "slug": "bmi-calculator",
+                    "resultFields": [
+                      { "key": "bmi", "value": "24.221453287197235", "display": "24.2", "label": "Your BMI", "type": "number" }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing slug.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorObject" } } }
+          },
+          "404": {
+            "description": "Calculator not found.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorObject" },
+                "example": { "error": { "message": "Calculator not found" } }
+              }
+            }
+          },
+          "500": {
+            "description": "The calculator's code failed to execute with the given inputs.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorObject" } } }
+          }
+        }
+      }
+    },
+    "/api/converter/categories": {
+      "get": {
+        "tags": ["Converters"],
+        "operationId": "listConverterCategories",
+        "summary": "List converter categories",
+        "description": "Every unit-converter category with its full unit enum. The `units` strings are the exact, case-sensitive values accepted by `POST /api/converter/convert` and the MCP `convert_*` tools.",
+        "responses": {
+          "200": {
+            "description": "All categories.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "category": { "type": "string", "example": "Length" },
+                          "slug": { "type": "string", "example": "length" },
+                          "units": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "example": ["Kilometer", "Meter", "Centimeter", "Mile", "Yard", "Foot", "Inch"]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/converter/convert": {
+      "post": {
+        "tags": ["Converters"],
+        "operationId": "convertUnits",
+        "summary": "Convert a value between units",
+        "description": "Converts `value` from one unit to another within a category. Unit names are **case-sensitive** and must match the enums from `GET /api/converter/categories` exactly. The category name is case-insensitive.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": { "type": "string", "description": "Converter category, e.g. `Length` (case-insensitive)." },
+                  "value": { "type": "number", "description": "Numeric value to convert." },
+                  "from": { "type": "string", "description": "Source unit — exact, case-sensitive enum member, e.g. `Meter`." },
+                  "to": { "type": "string", "description": "Target unit — exact, case-sensitive enum member, e.g. `Foot`." }
+                },
+                "required": ["category", "value", "from", "to"]
+              },
+              "example": { "category": "Length", "value": 5, "from": "Meter", "to": "Foot" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conversion result. `result` is an unrounded double.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "category": { "type": "string", "description": "Lowercased category.", "example": "length" },
+                    "from": { "type": "string", "example": "Meter" },
+                    "to": { "type": "string", "example": "Foot" },
+                    "value": { "type": "number", "example": 5 },
+                    "result": { "type": "number", "example": 16.404199475065617 }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing/invalid fields, non-numeric value, or unknown unit.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "category, from, to are required and value must be numeric" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/converter/paths": {
+      "get": {
+        "tags": ["Converters"],
+        "operationId": "listConverterPaths",
+        "summary": "List all converter page paths",
+        "description": "Machine-readable list of every conversion-pair page served on calculatorlib.com (e.g. `/m-to-ft`). Paths are language-independent (locales are URL prefixes). Sorted by path; hundreds of entries.",
+        "responses": {
+          "200": {
+            "description": "All converter pair pages.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "path": { "type": "string", "description": "URL path segment on calculatorlib.com.", "example": "ac-to-ft2" },
+                          "category": { "type": "string", "example": "Area" },
+                          "from": { "type": "string", "example": "Acre" },
+                          "to": { "type": "string", "example": "Square foot" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/stats/{slug}": {
+      "get": {
+        "tags": ["Stats"],
+        "operationId": "getMcpStats",
+        "summary": "Per-calculator usage stats",
+        "description": "Public aggregate call counts for one calculator, as shown in the trust badge on its page. Cached for 5 minutes (`Cache-Control: public, max-age=300`). Returns zeros rather than an error when stats are unavailable.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "description": "Calculator slug (hyphenated) — converted internally to the underscore tool name.",
+            "schema": { "type": "string" },
+            "example": "bmi-calculator"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate usage stats.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tool": { "type": "string", "description": "MCP tool name (underscores).", "example": "bmi_calculator" },
+                    "total": { "type": "integer", "description": "Lifetime call count." },
+                    "calls7d": { "type": "integer", "description": "Calls in the last 7 days." },
+                    "calls24h": { "type": "integer", "description": "Calls in the last 24 hours." },
+                    "lastTs": { "type": ["integer", "null"], "description": "Epoch milliseconds of the most recent call, or null." }
+                  }
+                },
+                "example": { "tool": "bmi_calculator", "total": 242, "calls7d": 3, "calls24h": 2, "lastTs": 1787836753691 }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing slug.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorString" } } }
+          }
+        }
+      }
+    },
+    "/api/stats/total": {
+      "get": {
+        "tags": ["Stats"],
+        "operationId": "getSiteStats",
+        "summary": "Site-wide calculation counter",
+        "description": "Snapshot behind the live counter on the calculatorlib.com homepage. `total = base + floor(elapsedMinutes × ratePerMinute) + realCalls`. Clients typically tick the UI at `ratePerSec` and re-fetch every 30–60 s to re-sync.",
+        "responses": {
+          "200": {
+            "description": "Counter snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer", "description": "Current display total." },
+                        "ratePerSec": { "type": "number" },
+                        "ratePerMinute": { "type": "number" },
+                        "base": { "type": "integer", "description": "Seed value (audit anchor)." },
+                        "startedAt": { "type": "string", "format": "date-time", "description": "When the counter began." },
+                        "realCalls": { "type": "integer", "description": "Real MCP/web execution increments." }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "data": {
+                    "total": 17854660,
+                    "ratePerSec": 0.5,
+                    "ratePerMinute": 30,
+                    "base": 12400000,
+                    "startedAt": "2026-05-11T19:12:32.156Z",
+                    "realCalls": 794334
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "tags": ["MCP"],
+        "operationId": "mcpRpc",
+        "summary": "MCP server (JSON-RPC 2.0)",
+        "description": "The Model Context Protocol endpoint (Streamable HTTP — POST only; GET returns 405). Speaks JSON-RPC 2.0 with methods `initialize`, `tools/list`, `tools/call`, and `ping`. Authentication is optional: anonymous calls are limited to 60/min per IP, calls with a `clk_` API token (via `Authorization: Bearer` or `X-API-Token`) to 600/min per user. See the MCP section of the docs for tool details.",
+        "security": [{}, { "bearerAuth": [] }, { "apiTokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jsonrpc": { "type": "string", "enum": ["2.0"] },
+                  "id": { "type": ["integer", "string"], "description": "Request id (omit for notifications)." },
+                  "method": { "type": "string", "enum": ["initialize", "tools/list", "tools/call", "ping", "notifications/initialized"], "description": "JSON-RPC method." },
+                  "params": { "type": "object", "description": "For tools/call: {\"name\": \"<tool>\", \"arguments\": {…}}.", "additionalProperties": true }
+                },
+                "required": ["jsonrpc", "method"]
+              },
+              "examples": {
+                "listTools": {
+                  "summary": "List tools",
+                  "value": { "jsonrpc": "2.0", "id": 1, "method": "tools/list" }
+                },
+                "runCalculator": {
+                  "summary": "Run a calculator",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                      "name": "run_calculator",
+                      "arguments": { "name": "bmi_calculator", "args": { "unitSystem": "metric", "weight": 70, "height": 170 } }
+                    }
+                  }
+                },
+                "convert": {
+                  "summary": "Convert units",
+                  "value": {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": { "name": "convert_length", "arguments": { "value": 5, "from": "Meter", "to": "Foot" } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC envelope: `{jsonrpc, id, result}` on success or `{jsonrpc, id, error}` for protocol errors. Tool failures return 200 with `result.isError: true`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jsonrpc": { "type": "string", "enum": ["2.0"] },
+                    "id": { "type": ["integer", "string", "null"] },
+                    "result": { "type": "object", "additionalProperties": true },
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": { "type": "integer", "example": -32601 },
+                        "message": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid API token (a missing token is allowed and treated as anonymous).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "invalid_token" }
+              }
+            }
+          },
+          "405": { "description": "GET is not supported — POST only." },
+          "429": {
+            "description": "Rate limit exceeded. Includes `Retry-After: 60`.",
+            "headers": {
+              "Retry-After": { "schema": { "type": "string" }, "description": "Seconds to wait before retrying (60)." }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "example": "rate_limited" },
+                    "limit_per_minute": { "type": "integer", "example": 60 },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
           }
         }
       }
     }
   },
   "components": {
-    "schemas": {
-      "Plant": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "description": "The name of the plant",
-            "type": "string"
-          },
-          "tag": {
-            "description": "Tag to specify the type",
-            "type": "string"
-          }
-        }
-      },
-      "NewPlant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/Plant"
-          },
-          {
-            "required": [
-              "id"
-            ],
-            "type": "object",
-            "properties": {
-              "id": {
-                "description": "Identification number of the plant",
-                "type": "integer",
-                "format": "int64"
-              }
-            }
-          }
-        ]
-      },
-      "Error": {
-        "required": [
-          "error",
-          "message"
-        ],
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
-        "scheme": "bearer"
+        "scheme": "bearer",
+        "description": "Optional clk_ API token from https://calculatorlib.com/account/api-tokens. Only used by POST /mcp."
+      },
+      "apiTokenHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Token",
+        "description": "Alternative header for the same clk_ token."
+      }
+    },
+    "schemas": {
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "slug": { "type": "string", "description": "Calculator slug — use in /api/calculator/ui and /api/calculator/execute.", "example": "bmi-calculator" },
+          "name": { "type": "string", "example": "BMI Calculator" },
+          "h1": { "type": "string", "example": "BMI Calculator" },
+          "category_name": { "type": "string", "example": "Health" },
+          "category_slug": { "type": ["string", "null"] },
+          "icon": { "type": ["string", "null"] }
+        }
+      },
+      "CatalogEntry": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "MCP tool name (underscores).", "example": "bmi_calculator" },
+          "slug": { "type": "string", "description": "Public URL slug (hyphens).", "example": "bmi-calculator" },
+          "title": { "type": "string", "example": "BMI Calculator" },
+          "description": { "type": "string" },
+          "inputSchema": {
+            "type": "object",
+            "description": "JSON-Schema object describing the calculator's inputs (properties, types, enums, defaults).",
+            "additionalProperties": true
+          }
+        }
+      },
+      "FormField": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string", "description": "The input's exact name — use this key in execute `inputs`.", "example": "weight" },
+          "field_type": { "type": "string", "description": "Widget kind.", "example": "input" },
+          "type": { "type": "string", "description": "HTML input type.", "example": "number" },
+          "text": { "type": "string", "description": "Human label, usually including the expected unit.", "example": "Weight (kg):" },
+          "placeholder": { "type": "string" },
+          "default_value": { "type": "string", "description": "Value used when the field is not supplied." },
+          "is_required": { "type": "boolean" },
+          "is_hidden": { "type": "boolean", "description": "True for fields belonging to a non-default mode (revealed by a trigger field)." },
+          "options": {
+            "type": "array",
+            "description": "For selects: allowed values.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string" },
+                "value": { "type": "string" },
+                "selected": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      },
+      "ResultField": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "description": "Stable machine key of the result.", "example": "bmi" },
+          "value": { "type": "string", "description": "Raw value, serialized as a string.", "example": "24.221453287197235" },
+          "display": { "type": "string", "description": "Human-formatted value as shown on the website.", "example": "24.2" },
+          "label": { "type": "string", "example": "Your BMI" },
+          "type": { "type": "string", "description": "Semantic type (number, currency, percent, text, …).", "example": "number" }
+        }
+      },
+      "ErrorObject": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string", "description": "Machine-readable error code (present on some endpoints)." },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      },
+      "ErrorString": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "description": "Error reason." }
+        }
       }
     }
   }

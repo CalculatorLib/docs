@@ -1,80 +1,153 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Run your first calculator through the REST API in three curl commands: search → read the input schema → execute."
+icon: "rocket"
 ---
 
-## Get started in three steps
+Everything below works with no API key. The base URL for all requests is `https://calculatorlib.com`.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+<Step title="Search for a calculator">
 
-### Step 1: Set up your local environment
+Find a calculator by keyword. Each result includes the `slug` you'll use in the next two steps.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash
+curl "https://calculatorlib.com/api/calculators/search?q=bmi&limit=3"
+```
 
-### Step 2: Deploy your changes
+```json Response (trimmed)
+{
+  "status": "ok",
+  "data": {
+    "results": [
+      {
+        "slug": "bmi-calculator",
+        "name": "BMI Calculator",
+        "h1": "BMI Calculator",
+        "category_name": "General"
+      }
+    ],
+    "query": "bmi",
+    "total": 1,
+    "has_more": true,
+    "language": "en"
+  }
+}
+```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+</Step>
+<Step title="Read the calculator's input schema">
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+**Do not skip this step.** The execute endpoint identifies inputs by their exact field names — get them from the UI schema:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash
+curl "https://calculatorlib.com/api/calculator/ui/bmi-calculator"
+```
 
-### Step 3: Go live
+```json Response (trimmed)
+{
+  "status": "ok",
+  "data": {
+    "slug": "bmi-calculator",
+    "h1": "BMI Calculator",
+    "form": [
+      {
+        "field": "unitSystem",
+        "field_type": "select",
+        "default_value": "metric",
+        "text": "Unit System:",
+        "options": [
+          { "label": "Metric (kg, cm)", "value": "metric", "selected": true },
+          { "label": "Imperial (lbs, ft/in)", "value": "imperial", "selected": false }
+        ]
+      },
+      { "field": "weight", "type": "number", "text": "Weight (kg):", "default_value": "70" },
+      { "field": "height", "type": "number", "text": "Height (cm):", "default_value": "175" },
+      { "field": "weightLbs", "type": "number", "text": "Weight (lbs):", "is_hidden": true },
+      { "field": "heightFt", "type": "number", "text": "Height (feet):", "is_hidden": true },
+      { "field": "heightIn", "type": "number", "text": "Height (inches):", "is_hidden": true }
+    ],
+    "resultFields": [
+      { "key": "bmi", "value": "22.857", "display": "22.9", "label": "Your BMI", "type": "number" }
+    ],
+    "triggerFields": ["unitSystem"]
+  }
+}
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+The `form` array tells you each input's `field` name, its type, its default, and (for selects) the allowed values. `is_hidden: true` fields belong to an alternate mode — here, the imperial inputs that appear when `unitSystem` is `"imperial"`.
+
+</Step>
+<Step title="Execute the calculator">
+
+POST the inputs using the **exact `field` names** from step 2:
+
+```bash
+curl -X POST "https://calculatorlib.com/api/calculator/execute/bmi-calculator" \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": {"unitSystem": "metric", "weight": 70, "height": 170}}'
+```
+
+```json Response
+{
+  "status": "ok",
+  "data": {
+    "slug": "bmi-calculator",
+    "resultFields": [
+      {
+        "key": "bmi",
+        "value": "24.221453287197235",
+        "display": "24.2",
+        "label": "Your BMI",
+        "type": "number"
+      }
+    ]
+  }
+}
+```
+
+`value` is the raw numeric result; `display` is the human-formatted version shown on the website.
+
+</Step>
+</Steps>
+
+<Warning>
+**Wrong input names fail silently.** If you send `{"inputs": {"Weight": 70}}` (wrong case) or `{"inputs": {"mass": 70}}` (wrong name), the API does **not** return an error — it computes the result using the calculator's default values instead. If your results look like they ignore your inputs, re-check the field names against `GET /api/calculator/ui/:slug`.
+</Warning>
+
+## Bonus: convert a unit
+
+```bash
+curl -X POST "https://calculatorlib.com/api/converter/convert" \
+  -H "Content-Type: application/json" \
+  -d '{"category": "Length", "value": 5, "from": "Meter", "to": "Foot"}'
+```
+
+```json Response
+{
+  "category": "length",
+  "from": "Meter",
+  "to": "Foot",
+  "value": 5,
+  "result": 16.404199475065617
+}
+```
+
+Unit names are case-sensitive; list them all with `GET /api/converter/categories`.
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Working with calculators" icon="calculator" href="/guides/calculators">
+    Schemas, hidden fields, trigger fields, and versioning.
+  </Card>
+  <Card title="MCP server" icon="plug" href="/mcp/overview">
+    Give an AI agent access to the whole library instead of calling REST yourself.
+  </Card>
+  <Card title="Rate limits" icon="gauge-high" href="/rate-limits">
+    What's enforced, and how a token raises the ceiling.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduction">
+    Full endpoint documentation with request/response schemas.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
