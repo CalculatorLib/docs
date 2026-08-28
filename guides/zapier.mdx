@@ -1,0 +1,84 @@
+---
+title: "Zapier"
+description: "Run any CalculatorLib calculator from a Zap, and trigger Zaps instantly when someone uses your embedded calculators — no code required."
+icon: "bolt"
+tag: "Invite only"
+---
+
+The CalculatorLib Zapier app connects 8,000+ calculators to the 7,000+ apps on Zapier. Use it two ways:
+
+- **Action — Run Calculator**: compute a result inside a Zap (e.g. take a value from a form submission, run it through a calculator, write the result to a spreadsheet).
+- **Trigger — Calculation Completed**: start a Zap the moment a visitor runs one of your embedded calculators (e.g. log the lead in a CRM, send a follow-up email).
+
+<Note>
+The app is **coming to the Zapier App Directory** and is currently in review, so it isn't publicly listed yet. It's **available today via an invite link** — ask the account owner for it, then click **Accept invite** to add CalculatorLib to your Zapier account.
+</Note>
+
+## Connect your account
+
+CalculatorLib authenticates with the same `clk_` API token you use everywhere else — no separate password.
+
+<Steps>
+<Step title="Create an API token">
+Open [**Account → API tokens**](https://calculatorlib.com/account/api-tokens) and create a token. It looks like `clk_a1b2c3d4e5f60718293a4b5c6d7e8f90` and is shown once — copy it.
+</Step>
+<Step title="Add the connection in Zapier">
+When you add a CalculatorLib step to a Zap, Zapier asks you to connect an account. Paste the `clk_` token into the **API Token** field. Zapier validates it against `GET /api/me` and shows your username on success.
+</Step>
+</Steps>
+
+<Note>
+A token identifies your account, so the **Calculation Completed** trigger only ever sees *your* embeds. Keep the token secret — anyone with it can act as your account. Revoke a leaked token from the same [API tokens](https://calculatorlib.com/account/api-tokens) page.
+</Note>
+
+## Action: Run Calculator
+
+Computes a calculator and returns its result fields, each of which you can map into later Zap steps.
+
+<Steps>
+<Step title="Pick a calculator">
+Choose from the **Calculator** dropdown — it's populated live from the CalculatorLib library, so you can search it by name.
+</Step>
+<Step title="Provide the inputs">
+Add the calculator's inputs as **key → value** pairs. Keys are the calculator's exact field names (e.g. `weight`, `height`, `unitSystem`); values can come from earlier steps in your Zap.
+</Step>
+<Step title="Map the result">
+The step outputs the calculator's result fields — each with its raw `value` and human-formatted `display`. Use them in any following action.
+</Step>
+</Steps>
+
+<Warning>
+Input keys are matched by **exact field name**. An unknown or misspelled key is ignored and the calculator falls back to its **default value** — so a wrong key still returns a result rather than an error. Take field names from the calculator's UI schema (`GET /api/calculator/ui/{slug}`) — see [Errors & caveats](/guides/errors-and-caveats).
+</Warning>
+
+Under the hood the action calls [`POST /api/calculator/execute/{slug}`](/api-reference/introduction). It counts against your monthly API quota like any other execute call — see [Rate limits](/rate-limits).
+
+## Trigger: Calculation Completed
+
+Fires **instantly** whenever a visitor presses Calculate inside one of **your keyed embeds** — the same `calculation.completed` event documented in the [Webhooks guide](/guides/webhooks).
+
+| Setting | Notes |
+|---|---|
+| **Calculator** *(optional)* | Limit the trigger to a single calculator slug. Leave it empty to fire for **all** of your embeds. |
+
+Each event carries the `slug`, the embedding `domain`, the `embed_profile`, and `occurred_at` — all mappable into the rest of your Zap.
+
+<Note>
+The trigger only fires for **keyed** embeds — snippets that carry your embed key (`data-e="emb_…"`). Add your key to the embeds you deploy so their calculations reach your Zap. See [Embedding → embed keys](/guides/embed#embed-keys).
+</Note>
+
+### How it works
+
+The trigger is a **REST Hook**. When you turn the Zap on, Zapier subscribes by calling [`POST /api/webhooks`](/api-reference/introduction) with the Zap's target URL (and the optional slug filter); when you turn it off, Zapier unsubscribes via [`DELETE /api/webhooks/{id}`](/api-reference/introduction). You never touch these endpoints yourself — but they're the same ones you can call directly to build your own REST-Hook integration ([Manage webhooks via the API](/guides/webhooks#manage-webhooks-via-the-api)).
+
+## Requirements
+
+- A CalculatorLib account with a `clk_` [API token](https://calculatorlib.com/account/api-tokens).
+- For the **Calculation Completed** trigger: webhooks are a **Builder plan and above** feature (1 endpoint on Builder, 10 on Business), and your embeds must carry your embed key. See [Plans & pricing](/platform/plans).
+- The **Run Calculator** action works on any plan (subject to your monthly API quota).
+
+## Availability
+
+<Card title="Get the invite" icon="envelope" href="https://calculatorlib.com">
+The Zapier app is pending directory review. Until it's publicly listed, join through the invite link from the account owner — then it appears in Zapier just like any other app.
+</Card>

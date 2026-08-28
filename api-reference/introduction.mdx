@@ -10,7 +10,7 @@ icon: "code"
 https://calculatorlib.com
 ```
 
-All endpoints are served over HTTPS and return JSON. The REST API requires **no authentication** — see [Authentication](/authentication) for the one place tokens matter (the MCP endpoint).
+All endpoints are served over HTTPS and return JSON. Most of the REST API requires **no authentication**. The exceptions are the MCP endpoint (where a token is optional — see [Authentication](/authentication)) and the **account endpoints** (`/api/me`, `/api/webhooks`), which **require** a `clk_` API token sent as `Authorization: Bearer clk_…` or `X-API-Token: clk_…`.
 
 ## Endpoint map
 
@@ -25,6 +25,10 @@ All endpoints are served over HTTPS and return JSON. The REST API requires **no 
 | `GET /api/converter/paths` | Every converter page URL path |
 | `GET /api/mcp/stats/{slug}` | Per-calculator usage stats |
 | `GET /api/stats/total` | Site-wide live calculation counter |
+| `GET /api/me` | Validate a token, return its account *(token required)* |
+| `POST /api/webhooks` | Subscribe a webhook endpoint *(token required)* |
+| `GET /api/webhooks` | List your webhook endpoints *(token required)* |
+| `DELETE /api/webhooks/{id}` | Unsubscribe a webhook endpoint *(token required)* |
 | `POST /mcp` | The MCP server (JSON-RPC 2.0) |
 
 ## The intended flow

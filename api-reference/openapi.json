@@ -18,7 +18,8 @@
     { "name": "Calculators", "description": "Search, inspect, and execute calculators" },
     { "name": "Converters", "description": "Unit conversion across 60+ categories" },
     { "name": "Stats", "description": "Public usage statistics" },
-    { "name": "MCP", "description": "Model Context Protocol server (JSON-RPC 2.0 over Streamable HTTP)" }
+    { "name": "MCP", "description": "Model Context Protocol server (JSON-RPC 2.0 over Streamable HTTP)" },
+    { "name": "Account", "description": "Token-authenticated account and webhook management (requires a clk_ API token)" }
   ],
   "paths": {
     "/api/calculators/search": {
@@ -566,6 +567,256 @@
         }
       }
     },
+    "/api/me": {
+      "get": {
+        "tags": ["Account"],
+        "operationId": "getMe",
+        "summary": "Validate a token and return its account",
+        "description": "Returns the account behind a `clk_` API token. Use it to verify a token is valid and to read the plan (which governs webhook caps and monthly quota). Requires authentication — send the token via `Authorization: Bearer clk_…` or `X-API-Token: clk_…`.",
+        "security": [{ "bearerAuth": [] }, { "apiTokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "The authenticated account.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": { "$ref": "#/components/schemas/Account" }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "data": { "id": "69f9a1b2c3d4e5f60718293a", "email": "you@example.com", "username": "you", "plan": "builder" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token.",
+            "headers": {
+              "WWW-Authenticate": { "schema": { "type": "string" }, "description": "`Bearer` — signals that a token is required." }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "invalid_token" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks": {
+      "get": {
+        "tags": ["Account"],
+        "operationId": "listWebhooks",
+        "summary": "List your webhook endpoints",
+        "description": "Lists the webhook endpoints owned by the authenticated account. The endpoint `secret` is never returned here — it is shown only once, in the create response.",
+        "security": [{ "bearerAuth": [] }, { "apiTokenHeader": [] }],
+        "responses": {
+          "200": {
+            "description": "The caller's webhook endpoints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/WebhookEndpoint" }
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "data": [
+                    {
+                      "id": "6a91c0de11a4b8d03e775a1c",
+                      "url": "https://your-server.com/hook",
+                      "events": ["calculation.completed"],
+                      "slugs": ["bmi-calculator"],
+                      "status": "active",
+                      "created_at": "2026-08-28T12:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token.",
+            "headers": {
+              "WWW-Authenticate": { "schema": { "type": "string" }, "description": "`Bearer` — signals that a token is required." }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "invalid_token" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Account"],
+        "operationId": "createWebhook",
+        "summary": "Create (subscribe) a webhook endpoint",
+        "description": "Registers a webhook endpoint programmatically. Because the API token proves ownership, the endpoint is `active` immediately — there is no `ping` challenge handshake (unlike endpoints created in the dashboard).\n\nThe `secret` is returned **once** in this response; store it to verify the `X-CalcLib-Signature` header on deliveries (same `t`/`v1` HMAC scheme — see the [Webhooks guide](/guides/webhooks)).\n\nThis is the subscribe half of the REST-Hook pattern the Zapier trigger uses.",
+        "security": [{ "bearerAuth": [] }, { "apiTokenHeader": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "description": "HTTPS URL that will receive deliveries. Must be HTTPS and publicly routable — non-HTTPS URLs and private/internal addresses are rejected." },
+                  "slugs": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Optional calculator-slug filter. Omit or leave empty to receive events from all of the account's embeds."
+                  }
+                },
+                "required": ["url"]
+              },
+              "example": { "url": "https://your-server.com/hook", "slugs": ["bmi-calculator"] }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Endpoint created and active. `secret` is shown only here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": { "$ref": "#/components/schemas/WebhookEndpointCreated" }
+                  }
+                },
+                "example": {
+                  "status": "ok",
+                  "data": {
+                    "id": "6a91c0de11a4b8d03e775a1c",
+                    "url": "https://your-server.com/hook",
+                    "events": ["calculation.completed"],
+                    "slugs": ["bmi-calculator"],
+                    "status": "active",
+                    "secret": "whsk_2f8c1a9e5b0d47c6a3e1f902b8d4c7a6"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid URL — not HTTPS, or resolves to a private/internal address.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "url must be https and publicly reachable" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token.",
+            "headers": {
+              "WWW-Authenticate": { "schema": { "type": "string" }, "description": "`Bearer` — signals that a token is required." }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "invalid_token" }
+              }
+            }
+          },
+          "403": {
+            "description": "The account's plan does not include webhooks (Free plan).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "webhooks require the Builder plan or above" }
+              }
+            }
+          },
+          "409": {
+            "description": "The plan's `webhook_endpoints_max` cap is already reached (Builder 1, Business 10).",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "webhook endpoint limit reached for your plan" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/webhooks/{id}": {
+      "delete": {
+        "tags": ["Account"],
+        "operationId": "deleteWebhook",
+        "summary": "Delete (unsubscribe) a webhook endpoint",
+        "description": "Removes one of the caller's webhook endpoints. This is the unsubscribe half of the REST-Hook pattern. Returns 404 if the id does not belong to the authenticated account.",
+        "security": [{ "bearerAuth": [] }, { "apiTokenHeader": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Webhook endpoint id, from the create or list response.",
+            "schema": { "type": "string" },
+            "example": "6a91c0de11a4b8d03e775a1c"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Endpoint deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string" },
+                        "deleted": { "type": "boolean", "enum": [true] }
+                      }
+                    }
+                  }
+                },
+                "example": { "status": "ok", "data": { "id": "6a91c0de11a4b8d03e775a1c", "deleted": true } }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token.",
+            "headers": {
+              "WWW-Authenticate": { "schema": { "type": "string" }, "description": "`Bearer` — signals that a token is required." }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "invalid_token" }
+              }
+            }
+          },
+          "404": {
+            "description": "No such endpoint for this account.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorString" },
+                "example": { "error": "not_found" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/mcp": {
       "post": {
         "tags": ["MCP"],
@@ -677,7 +928,7 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Optional clk_ API token from https://calculatorlib.com/account/api-tokens. Only used by POST /mcp."
+        "description": "A clk_ API token from https://calculatorlib.com/account/api-tokens. Optional on POST /mcp (raises the rate limit); required on the /api/me and /api/webhooks endpoints."
       },
       "apiTokenHeader": {
         "type": "apiKey",
@@ -745,6 +996,48 @@
           "display": { "type": "string", "description": "Human-formatted value as shown on the website.", "example": "24.2" },
           "label": { "type": "string", "example": "Your BMI" },
           "type": { "type": "string", "description": "Semantic type (number, currency, percent, text, …).", "example": "number" }
+        }
+      },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Account id.", "example": "69f9a1b2c3d4e5f60718293a" },
+          "email": { "type": "string", "example": "you@example.com" },
+          "username": { "type": "string", "example": "you" },
+          "plan": { "type": "string", "description": "Plan slug — governs webhook caps and monthly quota.", "example": "builder" }
+        }
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "6a91c0de11a4b8d03e775a1c" },
+          "url": { "type": "string", "format": "uri", "example": "https://your-server.com/hook" },
+          "events": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Event types delivered to this endpoint.",
+            "example": ["calculation.completed"]
+          },
+          "slugs": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Calculator-slug filter; empty means all of the account's embeds.",
+            "example": ["bmi-calculator"]
+          },
+          "status": { "type": "string", "description": "Endpoint state (e.g. `active`).", "example": "active" },
+          "created_at": { "type": "string", "format": "date-time", "example": "2026-08-28T12:00:00Z" }
+        }
+      },
+      "WebhookEndpointCreated": {
+        "type": "object",
+        "description": "The create response: like WebhookEndpoint but carrying the one-time `secret` in place of `created_at`.",
+        "properties": {
+          "id": { "type": "string", "example": "6a91c0de11a4b8d03e775a1c" },
+          "url": { "type": "string", "format": "uri", "example": "https://your-server.com/hook" },
+          "events": { "type": "array", "items": { "type": "string" }, "example": ["calculation.completed"] },
+          "slugs": { "type": "array", "items": { "type": "string" }, "example": ["bmi-calculator"] },
+          "status": { "type": "string", "example": "active" },
+          "secret": { "type": "string", "description": "Signing secret (`whsk_` prefix). Returned only once — store it to verify delivery signatures.", "example": "whsk_2f8c1a9e5b0d47c6a3e1f902b8d4c7a6" }
         }
       },
       "ErrorObject": {

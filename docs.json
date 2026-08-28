@@ -47,6 +47,7 @@
               "guides/converters",
               "guides/embed",
               "guides/webhooks",
+              "guides/zapier",
               "guides/errors-and-caveats"
             ]
           },

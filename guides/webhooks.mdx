@@ -92,6 +92,48 @@ containing a `challenge` value. Respond `2xx` **with the challenge somewhere in 
 body** and the endpoint flips to active. Echoing the request body back (like `httpbin.org/anything`
 does) passes automatically.
 
+## Manage webhooks via the API
+
+You don't have to use the dashboard — the same endpoints can be created, listed, and
+deleted programmatically with a `clk_` API token. This is what powers REST-Hook subscribers
+(including the [Zapier](/guides/zapier) trigger): subscribe with `POST /api/webhooks`,
+unsubscribe with `DELETE /api/webhooks/{id}`.
+
+<Note>
+API-created endpoints are **active immediately** — the token proves you own the account, so
+there's no `ping` challenge handshake. The `secret` is returned **once** in the create
+response; store it to verify signatures.
+</Note>
+
+<CodeGroup>
+
+```bash Subscribe
+curl -X POST https://calculatorlib.com/api/webhooks \
+  -H "Authorization: Bearer clk_YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://your-server.com/hook","slugs":["bmi-calculator"]}'
+# 201 → { "status":"ok", "data":{ "id":"6a91…", "secret":"whsk_…", "status":"active", … } }
+```
+
+```bash List
+curl https://calculatorlib.com/api/webhooks \
+  -H "Authorization: Bearer clk_YOUR_TOKEN_HERE"
+# 200 → { "status":"ok", "data":[ { "id":"6a91…", "url":"…", "slugs":[…], "status":"active", "created_at":"…" } ] }
+```
+
+```bash Unsubscribe
+curl -X DELETE https://calculatorlib.com/api/webhooks/6a91c0de11a4b8d03e775a1c \
+  -H "Authorization: Bearer clk_YOUR_TOKEN_HERE"
+# 200 → { "status":"ok", "data":{ "id":"6a91…", "deleted":true } }
+```
+
+</CodeGroup>
+
+`slugs` is optional (omit or leave empty for all of your embeds). URLs must be HTTPS and
+publicly reachable, and the plan cap (`webhook_endpoints_max`: Builder 1, Business 10) still
+applies. Full request/response and error codes are under **API Reference → Account** (see the
+[API reference](/api-reference/introduction)).
+
 ## Retries, failures, replay
 
 - Respond `2xx` within **10 seconds**. Anything else (including timeouts) is retried on a
