@@ -57,6 +57,20 @@ For a localized widget, add the language prefix to the URL: `https://calculatorl
 Without the loader there is **no auto-resize** — the iframe won't grow when results render. Set a generous fixed `height` (calculators with long result tables need more), or use the script loader, which handles this for you.
 </Warning>
 
+## Platform guides
+
+Step-by-step guides for pasting the snippet into popular website builders live on the main site — each shows exactly which block or element to use on that platform:
+
+- [WordPress](https://calculatorlib.com/integrations/wordpress) — Custom HTML block
+- [Wix](https://calculatorlib.com/integrations/wix) — Embed HTML element
+- [Squarespace](https://calculatorlib.com/integrations/squarespace) — Code Block
+- [Webflow](https://calculatorlib.com/integrations/webflow) — Embed element
+- [Ghost](https://calculatorlib.com/integrations/ghost) — HTML card
+- [Shopify](https://calculatorlib.com/integrations/shopify) — HTML/theme section
+- [Notion](https://calculatorlib.com/integrations/notion) — plain iframe URL (Notion doesn't run scripts, so use the direct `/embed/<slug>` link — it works, but without auto-resize)
+
+The full index is at [calculatorlib.com/integrations](https://calculatorlib.com/integrations).
+
 ## Display options
 
 Tune what the widget shows and how it looks. Each option is a `data-*` attribute on the script loader **and** a query parameter on the `/embed/<slug>` URL if you use a direct iframe:
