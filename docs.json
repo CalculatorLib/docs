@@ -47,9 +47,19 @@
               "guides/converters",
               "guides/embed",
               "guides/webhooks",
+              "guides/errors-and-caveats"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
               "guides/zapier",
               "guides/n8n-and-custom-gpt",
-              "guides/errors-and-caveats"
+              "guides/automation-platforms",
+              "guides/spreadsheets",
+              "guides/wordpress",
+              "guides/chatbots",
+              "guides/claude-skill"
             ]
           },
           {

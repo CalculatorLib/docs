@@ -1,0 +1,28 @@
+---
+title: "Make, Pipedream & Power Automate"
+description: "CalculatorLib connectors for three more automation platforms — run a calculator, and react to embed calculations."
+icon: "diagram-project"
+tag: "Coming soon"
+---
+
+<Note>
+**Coming soon.** These connectors are built and pending publication to each platform's marketplace. [Zapier](/guides/zapier) and [n8n](/guides/n8n-and-custom-gpt) cover the same ground and are further along. Everything runs against our dev environment until the production launch.
+</Note>
+
+All three authenticate with your `clk_` [API token](https://calculatorlib.com/account/api-tokens) and share the two building blocks you'll recognize from [Zapier](/guides/zapier): a **Run Calculator** action (backed by `POST /api/calculator/execute/{slug}`) and, where the platform supports it, a **Calculation Completed** trigger — the `calculation.completed` [webhook](/guides/webhooks) from your keyed embeds.
+
+## Make (Integromat)
+
+App **modules** for running a calculator inside a Make scenario.
+
+## Pipedream
+
+Prebuilt **components**: a *Run Calculator* action and a *Calculation Completed* webhook **source** (it subscribes via `POST /api/webhooks` and unsubscribes via `DELETE /api/webhooks/{id}`).
+
+## Power Automate
+
+A **custom connector** (Swagger 2.0) you import into a flow to run calculators.
+
+<Note>
+The **Calculation Completed** trigger/source relies on webhooks — a **Builder plan and above** feature — and your embeds must carry your embed key. See [Webhooks](/guides/webhooks) and [Plans & pricing](/platform/plans).
+</Note>

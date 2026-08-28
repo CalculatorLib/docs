@@ -1,0 +1,18 @@
+---
+title: "Claude Skill"
+description: "A packaged Claude Skill that finds and runs CalculatorLib calculators — MCP-first, with a REST fallback."
+icon: "robot"
+tag: "Coming soon"
+---
+
+<Note>
+**Coming soon.** The Skill is ready and will ship with the CalculatorLib integrations release. Until then, you can already connect the [MCP server](/mcp/overview) to Claude directly.
+</Note>
+
+The CalculatorLib **Skill** (a `SKILL.md` package) teaches Claude to search the library and run calculators for you. It's **MCP-first**: it uses the [CalculatorLib MCP server](/mcp/overview) when the client has it configured, and falls back to the public [REST API](/api-reference/introduction) otherwise — so it works with or without MCP.
+
+Because every calculation runs on CalculatorLib's own engine, the results match the website exactly — Claude never does the arithmetic itself.
+
+<Card title="Connect the MCP server today" icon="plug" href="/mcp/overview">
+The Skill packages the MCP server, which you can add to Claude right now — see the MCP section.
+</Card>

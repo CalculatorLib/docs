@@ -1,0 +1,46 @@
+---
+title: "Chat bots"
+description: "Run calculators without leaving Slack, Telegram, Discord, or LINE — the same search-or-run grammar in every bot."
+icon: "comments"
+tag: "Coming soon"
+---
+
+<Note>
+**Coming soon.** The bot backends are built and tested, but each stays disabled until the owner registers that platform's app and deploys — so they aren't reachable yet. This page shows how they work once installed. (Everything here is on our dev environment; nothing is on the production site yet.)
+</Note>
+
+CalculatorLib runs as a bot on four chat platforms. Every bot understands the **same grammar**, so once you know one you know them all.
+
+## The grammar
+
+| You send | The bot does |
+|---|---|
+| `<keyword>` | **Searches** the library and replies with the top matching calculators, each linked to its page. |
+| `<slug> key=value key=value …` | **Runs** that calculator with your inputs and replies with the result fields. |
+
+A leading slash command is stripped first, so `/calc bmi-calculator weight=70 height=170` and `bmi-calculator weight=70 height=170` do the same thing. Use the calculator's **exact field names** in `key=value` — the same names returned by [`GET /api/calculator/ui/{slug}`](/api-reference/introduction); unknown keys fall back to defaults ([why](/guides/errors-and-caveats)).
+
+## Examples
+
+```text Search by keyword
+mortgage
+→ the top mortgage calculators, each linked to its page
+```
+
+```text Run a calculator
+bmi-calculator weight=70 height=170
+→ Your BMI: 24.2  (plus the other result fields)
+```
+
+## Per-platform notes
+
+| Platform | How you invoke it |
+|---|---|
+| **Slack** | The `/calc` slash command, in any channel or DM. |
+| **Discord** | The `/calc` slash command — replies are **ephemeral** (only you see them). |
+| **Telegram** | Message the bot directly (the leading command is optional). |
+| **LINE** | Message the bot directly. |
+
+<Note>
+**For workspace admins:** installing a bot means registering an app on the platform and pointing it at CalculatorLib's signed bot endpoint. Setup instructions live in the source repository (`integrations/slack`, `/telegram`, `/discord`, `/line`) and are owner/admin-only — they aren't needed to *use* a bot once it's live.
+</Note>

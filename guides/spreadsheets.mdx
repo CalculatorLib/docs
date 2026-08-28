@@ -1,0 +1,45 @@
+---
+title: "Spreadsheets"
+description: "Call any CalculatorLib calculator straight from a Google Sheets or Excel cell with custom functions."
+icon: "table"
+tag: "Coming soon"
+---
+
+<Note>
+**Coming soon.** Both add-ons are ready and pending marketplace publication (Google Workspace Marketplace and Microsoft AppSource); until then they aren't installable from the stores. The backend they call is on our dev environment — not yet on the production site.
+</Note>
+
+Turn a calculator into a spreadsheet formula: put your inputs in cells, get results in others. Both add-ons authenticate with your `clk_` [API token](https://calculatorlib.com/account/api-tokens) and draw on your [monthly API quota](/rate-limits).
+
+## Google Sheets
+
+Three custom functions, added through Apps Script:
+
+| Function | Returns |
+|---|---|
+| `=CALCLIB(slug, "k=v", …)` | The calculator's primary result. |
+| `=CALCLIB_FIELD(slug, field, "k=v", …)` | One named result field. |
+| `=CALCLIB_ALL(slug, "k=v", …)` | Every result field (spills into neighboring cells). |
+
+Inputs are passed as `"key=value"` strings, one per argument. Store your token once in a **Script Property** named `CALCLIB_TOKEN`.
+
+```text Example
+=CALCLIB("bmi-calculator", "weight=70", "height=170")
+```
+
+## Excel
+
+An Office.js add-in adds two custom functions:
+
+| Function | Returns |
+|---|---|
+| `=CALCLIB.RUN(slug, "k=v", …)` | The calculator's primary result. |
+| `=CALCLIB.FIELD(slug, field, "k=v", …)` | One named result field. |
+
+```text Example
+=CALCLIB.RUN("bmi-calculator", "weight=70", "height=170")
+```
+
+<Note>
+Use the calculator's **exact field names** in `key=value` — get them from [`GET /api/calculator/ui/{slug}`](/api-reference/introduction). Unknown keys fall back to defaults ([why](/guides/errors-and-caveats)).
+</Note>

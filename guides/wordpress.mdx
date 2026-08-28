@@ -1,0 +1,32 @@
+---
+title: "WordPress plugin"
+description: "Embed calculators in WordPress with a [calculatorlib] shortcode or a Gutenberg block — no theme code."
+icon: "wordpress"
+tag: "Coming soon"
+---
+
+<Note>
+**Coming soon.** The plugin is ready and pending publication to the WordPress.org plugin directory. You don't have to wait, though — the manual script method works on any WordPress site **today** (see below and [Embedding](/guides/embed)). Everything is on our dev environment ahead of the production launch.
+</Note>
+
+Once installed, the plugin gives you two ways to drop a calculator into a page or post.
+
+## Shortcode
+
+```text
+[calculatorlib slug="bmi-calculator" lang="en" height="600"]
+```
+
+| Attribute | Required | Value |
+|---|---|---|
+| `slug` | yes | The calculator's slug — its URL path on calculatorlib.com. |
+| `lang` | no | Two-letter language code for a localized widget. |
+| `height` | no | Initial iframe height in pixels. |
+
+## Gutenberg block
+
+Add the **CalculatorLib** block in the editor and set the same `slug`, `lang`, and `height` in the block sidebar.
+
+## Without the plugin
+
+You can embed right now: paste the [embed script](/guides/embed#script-loader-recommended) into a **Custom HTML** block and it works immediately. The plugin just makes that a first-class WordPress experience.
