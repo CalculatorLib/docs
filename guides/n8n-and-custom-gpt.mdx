@@ -1,0 +1,48 @@
+---
+title: "n8n & Custom GPT"
+description: "Two more ways to reach CalculatorLib — a community node for n8n workflows, and a ChatGPT Custom GPT backed by the public API. Both are on the way."
+icon: "puzzle-piece"
+tag: "Coming soon"
+---
+
+Both of these connect with the same `clk_` [API token](https://calculatorlib.com/account/api-tokens) you use everywhere else — see [Authentication](/authentication).
+
+## n8n community node
+
+The `n8n-nodes-calculatorlib` package adds CalculatorLib nodes to [n8n](https://n8n.io), the workflow-automation tool.
+
+<Note>
+**Coming to npm.** The package is ready; publishing is pending the owner's npm account. Once it's live, self-hosted n8n users can install it from **Settings → Community Nodes** by entering `n8n-nodes-calculatorlib`.
+</Note>
+
+**Credential — "CalculatorLib API"**: your `clk_` token, sent as the `X-API-Token` header and verified against `GET /api/me` when you click *Test*.
+
+The package ships two nodes:
+
+| Node | What it does |
+|---|---|
+| **CalculatorLib** | *Run Calculator* — pick a calculator slug and pass inputs as key → value pairs; the output item carries each result field flattened onto it, plus a `results` array of the full field objects (`key`, `value`, `display`, `label`, `type`). *Search Calculators* — find calculators by keyword. |
+| **CalculatorLib Trigger** | Fires on `calculation.completed` from **your keyed embeds**. It registers its webhook on activation via `POST /api/webhooks` and removes it via `DELETE /api/webhooks/{id}` when you deactivate the workflow; an optional filter limits it to a single calculator slug. |
+
+The action is backed by `POST /api/calculator/execute/{slug}` and search by `GET /api/calculators/search`; the trigger is the same REST-Hook + `calculation.completed` event described in the [Webhooks guide](/guides/webhooks). Trigger events only fire for embeds carrying your embed key — see [Embedding → embed keys](/guides/embed#embed-keys).
+
+## Custom GPT (ChatGPT)
+
+A ChatGPT **Custom GPT** with Actions wired to the public REST API, so you can find and run calculators in a normal ChatGPT conversation.
+
+<Note>
+**Coming soon.** The GPT kit is ready; the owner will publish it to the GPT store. It requires a ChatGPT plan that supports GPTs.
+</Note>
+
+The GPT exposes two Actions:
+
+| Action | Endpoint |
+|---|---|
+| `searchCalculators` | `GET /api/calculators/search` |
+| `runCalculator` | `POST /api/calculator/execute/{slug}` |
+
+**Auth**: an API-key authentication using your `clk_` token in the `X-API-Token` header. The same [silent-defaults caveat](/guides/errors-and-caveats) applies — the GPT should read a calculator's field names before executing.
+
+<Card title="Get an API token" icon="key" href="https://calculatorlib.com/account/api-tokens">
+Both integrations need a `clk_` token. Create one under Account → API tokens.
+</Card>

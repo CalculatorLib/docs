@@ -48,6 +48,7 @@
               "guides/embed",
               "guides/webhooks",
               "guides/zapier",
+              "guides/n8n-and-custom-gpt",
               "guides/errors-and-caveats"
             ]
           },
