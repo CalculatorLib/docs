@@ -37,11 +37,12 @@ Respect `Retry-After` — the window resets within a minute. Well-behaved MCP cl
 
 ## REST API
 
-Most REST endpoints have no hard per-endpoint limit, with one exception:
-
 | Endpoint | Limit |
 |---|---|
+| `POST /api/calculator/execute/:slug` | **60 / minute per IP** anonymously, **600 / minute** with a `clk_` token (same numbers as MCP) — returns `429` with `Retry-After: 60` |
 | `GET /api/calculators/search` | **60 requests / minute per IP** — returns `429` with `{"error": {"code": "RATE_LIMITED", ...}}` when exceeded |
+
+Authenticate `execute` calls with `Authorization: Bearer clk_…` or the `X-API-Token: clk_…` header (identical to MCP — see [Authentication](/authentication)).
 
 Search is additionally bounded by design: `limit` is capped at 25 and `offset` at 50, so a single query can page through at most the first ~75 results.
 
@@ -56,6 +57,18 @@ The whole site sits behind Cloudflare, which applies its own edge rate limiting 
 - **Back off on 429.** Wait the `Retry-After` seconds (60) before retrying; don't hammer.
 - **Need more than 600/min?** There is currently no published tier above the token limit — reach out via [calculatorlib.com](https://calculatorlib.com) if you have a high-volume use case.
 
+## Monthly quota (token holders)
+
+Separate from the per-minute limits, every `clk_` token draws from its account's **monthly quota** — the `api_calls_month` entitlement of your plan (2,000 on Free, 100,000 on Builder, 2,000,000 on Business, custom on Enterprise). REST `execute` calls and MCP `tools/call` count against the same pool; `initialize` and `tools/list` are free. The month is the **calendar month in UTC**.
+
+Every authenticated response carries the running balance:
+
+```http
+X-Quota-Remaining: 99998
+```
+
+When the pool is exhausted, REST answers `429` and MCP answers a JSON-RPC error (`code -32000`) until the next calendar month — or an upgrade. Your month-to-date usage is always visible under **Account → Billing**, read from the same counter the limit enforces.
+
 <Note>
-Separate from these per-minute limits, **monthly API quotas** per subscription tier (2,000 free → unlimited on Enterprise) are part of the upcoming paid plans — see [Plans & pricing](/platform/plans). They are not yet enforced during pre-launch.
+Anonymous callers have no monthly quota — only the per-minute limits above.
 </Note>

@@ -46,6 +46,7 @@
               "guides/calculators",
               "guides/converters",
               "guides/embed",
+              "guides/webhooks",
               "guides/errors-and-caveats"
             ]
           },

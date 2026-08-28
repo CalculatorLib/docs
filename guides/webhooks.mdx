@@ -1,0 +1,111 @@
+---
+title: "Webhooks"
+description: "Get an HTTP POST on your server every time someone runs a calculation in your embed — signed, retried, and replayable."
+icon: "webhook"
+---
+
+Webhooks push events from CalculatorLib to your server, so an embedded calculator can drive
+your own workflows — log leads in a CRM, trigger a follow-up email, update a dashboard —
+without polling.
+
+Available on the **Builder plan and above** (1 endpoint on Builder, 10 on Business).
+Manage endpoints under **Account → Webhooks**.
+
+## Events
+
+| Type | Fires when | `data` |
+|---|---|---|
+| `calculation.completed` | A visitor presses Calculate inside one of **your keyed embeds** (`data-e="emb_…"`) on a third-party site | `slug`, `domain` (embedding site), `embed_profile`, `occurred_at` |
+| `ping` | Endpoint verification (see below) | `challenge` |
+
+More event types (user-created-tool status, lead capture) will be added under the same envelope —
+unknown `type` values should be acknowledged with `2xx` and ignored.
+
+## Envelope
+
+Every delivery is an HTTP `POST` with a JSON body:
+
+```json
+{
+  "id": "evt_9f2c11a4b8d03e775a1c22de",
+  "type": "calculation.completed",
+  "v": 1,
+  "created_at": "2026-08-28T12:00:00Z",
+  "data": {
+    "slug": "bmi-calculator",
+    "domain": "customer-site.com",
+    "embed_profile": "emb_30655904b87bc4f8",
+    "occurred_at": "2026-08-28T11:59:58Z"
+  }
+}
+```
+
+Delivery is **at-least-once**: a retried delivery carries the same `id`, so deduplicate on it.
+
+## Verifying signatures
+
+Each delivery is signed with your endpoint's secret (shown once, at creation):
+
+```http
+X-CalcLib-Signature: t=1724800000,v1=5257a869e7...
+```
+
+`v1` is `HMAC_SHA256(secret, t + "." + raw_body)` in hex. Verify before trusting anything:
+
+<CodeGroup>
+
+```js Node.js
+import crypto from "node:crypto";
+
+function verify(secret, header, rawBody, toleranceSec = 300) {
+  const parts = Object.fromEntries(header.split(",").map(p => p.trim().split("=")));
+  const ts = Number(parts.t);
+  if (!ts || Math.abs(Date.now() / 1000 - ts) > toleranceSec) return false;
+  const expected = crypto.createHmac("sha256", secret).update(`${ts}.${rawBody}`).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1 ?? ""));
+}
+```
+
+```python Python
+import hashlib, hmac, time
+
+def verify(secret: str, header: str, raw_body: bytes, tolerance: int = 300) -> bool:
+    parts = dict(p.strip().split("=", 1) for p in header.split(","))
+    ts = int(parts.get("t", 0))
+    if abs(time.time() - ts) > tolerance:
+        return False
+    expected = hmac.new(secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts.get("v1", ""))
+```
+
+</CodeGroup>
+
+<Warning>
+Compute the HMAC over the **raw request body bytes** — parse the JSON only after the
+signature checks out. Re-serializing JSON before verifying will break the signature.
+</Warning>
+
+## Endpoint verification
+
+When you register an endpoint (HTTPS only), CalculatorLib immediately POSTs a `ping` event
+containing a `challenge` value. Respond `2xx` **with the challenge somewhere in the response
+body** and the endpoint flips to active. Echoing the request body back (like `httpbin.org/anything`
+does) passes automatically.
+
+## Retries, failures, replay
+
+- Respond `2xx` within **10 seconds**. Anything else (including timeouts) is retried on a
+  backoff ladder: **1m → 5m → 30m → 2h → 8h**, then the delivery is marked `dead`.
+- Dead deliveries stay visible for 30 days under **Account → Webhooks** and can be replayed
+  with one click.
+- After **20 consecutive failures** the endpoint is disabled automatically — re-enable it from
+  the same page once your receiver is healthy.
+- Use **Send test** on the endpoint row to push a synthetic `calculation.completed` through the
+  real queue at any time.
+
+## Filtering
+
+An endpoint can be limited to specific calculators with the optional slug filter
+(`bmi-calculator, mortgage-calculator`). Empty filter = events from all of your embeds.
+Events fire only for **keyed** embeds (`data-e`), so add your embed key to the snippets you
+deploy — see [Embedding](/guides/embed).
