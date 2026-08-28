@@ -9,7 +9,7 @@ tag: "Coming soon"
 **Coming soon.** Both add-ons are ready and pending marketplace publication (Google Workspace Marketplace and Microsoft AppSource); until then they aren't installable from the stores. The backend they call is on our dev environment — not yet on the production site.
 </Note>
 
-Turn a calculator into a spreadsheet formula: put your inputs in cells, get results in others. Both add-ons authenticate with your `clk_` [API token](https://calculatorlib.com/account/api-tokens) and draw on your [monthly API quota](/rate-limits).
+Turn a calculator into a spreadsheet formula: put your inputs in cells, get results in others. Inputs are passed as **alternating `key, value` arguments**, and either side can be a literal or a cell reference. Both add-ons work without a token (subject to the [anonymous per-minute limits](/rate-limits)); add your `clk_` [API token](https://calculatorlib.com/account/api-tokens) to lift those limits and draw on your account's monthly quota.
 
 ## Google Sheets
 
@@ -17,29 +17,35 @@ Three custom functions, added through Apps Script:
 
 | Function | Returns |
 |---|---|
-| `=CALCLIB(slug, "k=v", …)` | The calculator's primary result. |
-| `=CALCLIB_FIELD(slug, field, "k=v", …)` | One named result field. |
-| `=CALCLIB_ALL(slug, "k=v", …)` | Every result field (spills into neighboring cells). |
+| `=CALCLIB(slug, key, value, …)` | The **first** result field's value (a number when it can be coerced to one). |
+| `=CALCLIB_FIELD(slug, field, key, value, …)` | One result field, by key. |
+| `=CALCLIB_ALL(slug, key, value, …)` | Every result field — a 2-column spill of `[label, value]` rows. |
 
-Inputs are passed as `"key=value"` strings, one per argument. Store your token once in a **Script Property** named `CALCLIB_TOKEN`.
+Inputs come after the slug (or, for `_FIELD`, after the field name) as alternating **key, value** pairs. Values can be literals or cell references — e.g. `"height", A2, "weight", B2`. Store your token once in a **Script Property** named `CALCLIB_TOKEN`.
 
 ```text Example
-=CALCLIB("bmi-calculator", "weight=70", "height=170")
+=CALCLIB("bmi-calculator", "height", 175, "weight", 70)
+```
+
+```text With cell references
+=CALCLIB("bmi-calculator", "height", A2, "weight", B2)
 ```
 
 ## Excel
 
-An Office.js add-in adds two custom functions:
+An Office.js add-in adds two custom functions (there's no `_ALL` in Excel):
 
 | Function | Returns |
 |---|---|
-| `=CALCLIB.RUN(slug, "k=v", …)` | The calculator's primary result. |
-| `=CALCLIB.FIELD(slug, field, "k=v", …)` | One named result field. |
+| `=CALCLIB.RUN(slug, key, value, …)` | The **first** result field's value (a number when it can be coerced to one). |
+| `=CALCLIB.FIELD(slug, field, key, value, …)` | One result field, by key. |
+
+Same alternating **key, value** arguments (literals or cell references). Set your token in the add-in's task pane — it's kept in the browser's `localStorage`.
 
 ```text Example
-=CALCLIB.RUN("bmi-calculator", "weight=70", "height=170")
+=CALCLIB.RUN("bmi-calculator", "height", 175, "weight", 70)
 ```
 
 <Note>
-Use the calculator's **exact field names** in `key=value` — get them from [`GET /api/calculator/ui/{slug}`](/api-reference/introduction). Unknown keys fall back to defaults ([why](/guides/errors-and-caveats)).
+Use the calculator's **exact field names** as the keys — get them from [`GET /api/calculator/ui/{slug}`](/api-reference/introduction). Unknown keys fall back to defaults ([why](/guides/errors-and-caveats)). Without a token you get the anonymous per-minute limits; when a formula returns `429`, the message tells you to add a token.
 </Note>
