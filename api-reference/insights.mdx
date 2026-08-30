@@ -1,0 +1,90 @@
+---
+title: "Usage Insights"
+description: "Per-calculator usage insights — the tool's demand curve, its market trend and its relative position. Paid plans."
+---
+
+Returns the usage-insight series behind the **Usage stats** panel on every calculator page:
+the tool's own page-view demand curve, its market's (category's) aggregate trend, the market
+leaderboard and the language mix.
+
+<Info>
+Available on the **Builder** plan (90-day window) and the **Business** plan (400-day window).
+Free-plan and anonymous calls receive `403 INSIGHTS_LOCKED`.
+</Info>
+
+## Endpoint
+
+```http
+GET https://calculatorlib.com/api/insights/{slug}
+```
+
+### Authentication
+
+Either of:
+
+- A signed-in browser session (the calculator pages use this), or
+- An API token: `Authorization: Bearer clk_…` or `X-API-Token: clk_…` — the same token that
+  authenticates the MCP server and the REST execute API. Create one at
+  [Account → API tokens](https://calculatorlib.com/account/api-tokens).
+
+Insights reads are **not** metered against your monthly API-call quota. Abuse is bounded by a
+per-IP limit of 60 requests/minute (`429` with `Retry-After` beyond it).
+
+### Query parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `days` | int | Requested window. Clamped server-side to your plan: Builder ≤ 90, Business ≤ 400. Default 30. |
+| `category` | string | The tool's category slug (e.g. `health-fitness-calculator`) — enables the `market` block. |
+| `lang` | string | Market language (`en`, `vi`, `zh`, `zh-CN`, `zh-TW`, …). Normalized server-side; defaults to `en`. |
+
+## Response
+
+```json
+{
+  "slug": "bmi-calculator",
+  "days": 90,
+  "since": "2026-06-02",
+  "views": [ { "day": "2026-08-30", "views": 37 }, "…" ],
+  "views_by_lang": [ { "lang": "vi", "views": 17017 }, "…" ],
+  "series": [ { "day": "2026-08-30", "web": 2, "app": 1, "api": 1, "mcp": 1, "total": 5 }, "…" ],
+  "totals": { "d7": 9, "d30": 9, "window": { "web": 3, "app": 2, "api": 2, "mcp": 2, "total": 9 } },
+  "trend_pct": null,
+  "lifetime": 246434,
+  "market": {
+    "category": "health-fitness-calculator",
+    "series": [ { "day": "2026-08-30", "pct": 78 }, "…" ],
+    "top": [ { "slug": "bmi-calculator", "name": "BMI计算器", "rank": 1, "pct": 100 }, "…" ],
+    "rank": 1,
+    "pi": 100,
+    "band": "leading",
+    "share_pct": 21
+  }
+}
+```
+
+- `views` / `views_by_lang` / `series` / `lifetime` — **your requested tool's own data**, absolute.
+- `market` — **relative only, by design**: the category series is normalized to 0–100 of its
+  window maximum, leaderboard rows carry `pct` (percent of the market leader) instead of raw
+  counts, and the tool's position arrives pre-computed as `rank` (top-12 position, or `null`),
+  `pi` (Popularity Index, 0–100, log-normalized against the market leader), `band`
+  (`leading` ≥ 80, `popular` ≥ 60, `growing` ≥ 40, else `emerging`) and `share_pct` (the tool's
+  share of the market's views over the last 30 days). Absolute figures for *other* tools and
+  for market size are never exposed.
+- `market` is `null` when `category` is omitted or unknown — the rest of the payload is
+  unaffected.
+
+## Errors
+
+| Status | Code | Meaning |
+|---|---|---|
+| `403` | `INSIGHTS_LOCKED` | No entitled plan (anonymous, free, or an invalid token). The body carries an `upgrade` pointer. |
+| `429` | — | Per-IP rate limit (60/min). Honour `Retry-After`. |
+| `400` | — | Malformed slug. |
+
+## Example
+
+```bash
+curl -H "Authorization: Bearer clk_your_token" \
+  "https://calculatorlib.com/api/insights/bmi-calculator?days=365&category=health-fitness-calculator&lang=en"
+```
